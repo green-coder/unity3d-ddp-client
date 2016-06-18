@@ -1,0 +1,18 @@
+<body>
+  <div class="container">
+    <header>
+      <h1>Users</h1>
+      {{> loginButtons}}
+    </header>
+
+    <p>Friends:</p>
+    <ul>
+      {{#each friends}}
+        <li>{{> friend}}</li>
+      {{/each}}
+    </ul>
+
+    <hr>
+
+  </div>
+</body>
