@@ -16,4 +16,13 @@ public class MethodCall {
 	public Action<MethodCall> OnResult;
 
 	public DdpError error;
+
+	public IEnumerator WaitForResult() {
+		while (!hasResult) {
+			yield return null;
+		}
+
+		yield break;
+	}
+
 }

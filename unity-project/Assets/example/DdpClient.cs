@@ -14,6 +14,8 @@ public class DdpClient : MonoBehaviour {
 
 		ddpConnection.OnConnected += (DdpConnection connection) => {
 			Debug.Log("Connected.");
+
+			StartCoroutine(MyCoroutine());
 		};
 
 		ddpConnection.OnDisconnected += (DdpConnection connection) => {
@@ -108,6 +110,12 @@ public class DdpClient : MonoBehaviour {
 			};
 		}
 
+	}
+
+	private IEnumerator MyCoroutine() {
+		MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(19), JSONObject.Create(23));
+		yield return methodCall.WaitForResult();
+		Debug.Log("(19 + 23)'s call has a result: " + methodCall.result.i);
 	}
 
 }
