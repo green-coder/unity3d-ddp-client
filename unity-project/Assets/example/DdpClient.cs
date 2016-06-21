@@ -4,11 +4,13 @@ using System.Collections;
 public class DdpClient : MonoBehaviour {
 
 	public string serverUrl = "ws://localhost:3000/websocket";
+	public bool logMessages;
 
 	private DdpConnection ddpConnection;
 
 	public void Start() {
 		ddpConnection = new DdpConnection(serverUrl);
+		ddpConnection.logMessages = logMessages;
 
 		ddpConnection.OnConnected += (DdpConnection connection) => {
 			Debug.Log("Connected.");
@@ -63,6 +65,7 @@ public class DdpClient : MonoBehaviour {
 
 	public void Update() {
 		if (Input.GetKeyDown(KeyCode.C)) {
+			Debug.Log("Connecting ...");
 			ddpConnection.Connect();
 		}
 

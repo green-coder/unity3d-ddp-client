@@ -102,6 +102,8 @@ public class DdpConnection : IDisposable {
 	public event OnMovedBeforeDelegate OnMovedBefore;
 	public event OnErrorDelegate OnError;
 
+	public bool logMessages;
+
 	public DdpConnection(string url) {
 		coroutineHelper = CoroutineHelper.GetInstance();
 		coroutineHelper.StartCoroutine(HandleMessages());
@@ -110,7 +112,7 @@ public class DdpConnection : IDisposable {
 		ws.OnOpen += OnWebSocketOpen;
 		ws.OnError += OnWebSocketError;
 		ws.OnClose += OnWebSocketClose;
-		ws.OnMessage += OnMessageFromServer;
+		ws.OnMessage += OnWebSocketMessage;
 	}
 
 	private void OnWebSocketOpen(object sender, EventArgs e) {
@@ -149,8 +151,8 @@ public class DdpConnection : IDisposable {
 		}
 	}
 
-	private void OnMessageFromServer(object sender, WebSocketSharp.MessageEventArgs e) {
-		//Debug.Log("OnMessage: " + e.Data);
+	private void OnWebSocketMessage(object sender, WebSocketSharp.MessageEventArgs e) {
+		if (logMessages) Debug.Log("OnMessage: " + e.Data);
 		JSONObject message = new JSONObject(e.Data);
 		messageQueue.Enqueue(message);
 	}
@@ -415,7 +417,7 @@ public class DdpConnection : IDisposable {
 	}
 
 	private void Send(string message) {
-		//Debug.Log("Send: " + message);
+		if (logMessages) Debug.Log("Send: " + message);
 		ws.Send(message);
 	}
 
