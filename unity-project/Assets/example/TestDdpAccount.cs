@@ -1,21 +1,25 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class DdpClient : MonoBehaviour {
+public class TestDdpAccount : MonoBehaviour {
 
 	public string serverUrl = "ws://localhost:3000/websocket";
+	public string username;
+	public string password;
+	public string token;
 	public bool logMessages;
 
 	private DdpConnection ddpConnection;
+	private DdpAccount account;
 
 	public void Start() {
 		ddpConnection = new DdpConnection(serverUrl);
 		ddpConnection.logMessages = logMessages;
 
+		account = new DdpAccount(ddpConnection);
+
 		ddpConnection.OnConnected += (DdpConnection connection) => {
 			Debug.Log("Connected.");
-
-			StartCoroutine(MyCoroutine());
 		};
 
 		ddpConnection.OnDisconnected += (DdpConnection connection) => {
@@ -63,8 +67,6 @@ public class DdpClient : MonoBehaviour {
 
 	}
 
-	private Subscription friendSub;
-
 	public void Update() {
 		if (Input.GetKeyDown(KeyCode.C)) {
 			Debug.Log("Connecting ...");
@@ -75,47 +77,24 @@ public class DdpClient : MonoBehaviour {
 			ddpConnection.Close();
 		}
 
-		if (Input.GetKeyDown(KeyCode.S)) {
-			friendSub = ddpConnection.Subscribe("friends");
-			friendSub.OnReady = (Subscription obj) => {
-				Debug.Log("Ready subscription: " + obj.id);
-			};
+		if (Input.GetKeyDown(KeyCode.U)) {
+			StartCoroutine(account.CreateUserAndLogin(username, password));
 		}
 
-		if (Input.GetKeyDown(KeyCode.U)) {
-			ddpConnection.Unsubscribe(friendSub);
+		if (Input.GetKeyDown(KeyCode.L)) {
+			StartCoroutine(account.Login(username, password));
 		}
 
 		if (Input.GetKeyDown(KeyCode.R)) {
-			ddpConnection.Call("friends.removeAll");
+			StartCoroutine(account.ResumeSession(token));
 		}
 
-		if (Input.GetKeyDown(KeyCode.F)) {
-			MethodCall methodCall = ddpConnection.Call("friends.create", JSONObject.CreateStringObject("Coco"));
-			methodCall.OnUpdated = (MethodCall obj) => {
-				Debug.Log("Updated, methodId=" + obj.id);
-			};
-			methodCall.OnResult = (MethodCall obj) => {
-				Debug.Log("Result = " + obj.result);
-			};
+		if (Input.GetKeyDown(KeyCode.T)) {
+			Debug.Log("Token " + account.token + " expires at " + account.tokenExpiration);
 		}
 
-		if (Input.GetKeyDown(KeyCode.A)) {
-			MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(7), JSONObject.Create(5));
-			methodCall.OnUpdated = (MethodCall obj) => {
-				Debug.Log("Updated, methodId=" + obj.id);
-			};
-			methodCall.OnResult = (MethodCall obj) => {
-				Debug.Log("Result = " + obj.result);
-			};
+		if (Input.GetKeyDown(KeyCode.O)) {
+			StartCoroutine(account.Logout());
 		}
-
 	}
-
-	private IEnumerator MyCoroutine() {
-		MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(19), JSONObject.Create(23));
-		yield return methodCall.WaitForResult();
-		Debug.Log("(19 + 23)'s call has a result: " + methodCall.result.i);
-	}
-
 }

@@ -181,7 +181,7 @@ GameObject:
   - 4: {fileID: 810825835}
   - 114: {fileID: 810825834}
   m_Layer: 0
-  m_Name: ddpClient
+  m_Name: testDdpClient
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -199,6 +199,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serverUrl: ws://localhost:3000/websocket
+  logMessages: 1
 --- !u!4 &810825835
 Transform:
   m_ObjectHideFlags: 0

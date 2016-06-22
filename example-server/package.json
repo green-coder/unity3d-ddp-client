@@ -1,0 +1,11 @@
+{
+  "name": "example-unity3d-ddp-server",
+  "version": "1.0.0",
+  "description": "A meteor server used for demonstration of the unity3d-ddp-client library.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vincent Cantin <vincent.cantin@le-moulin-studio.com>",
+  "license": "MIT"
+}
