@@ -4,6 +4,10 @@ using System.Threading.Collections;
 using System.Collections;
 using System.Collections.Generic;
 
+/*
+ * DDP protocol:
+ *   https://github.com/meteor/meteor/blob/master/packages/ddp/DDP.md
+ */
 public class DdpConnection : IDisposable {
 
 	// The possible values for the "msg" field.
@@ -86,11 +90,11 @@ public class DdpConnection : IDisposable {
 
 	public delegate void OnConnectedDelegate(DdpConnection connection);
 	public delegate void OnDisconnectedDelegate(DdpConnection connection);
-	public delegate void OnAddedDelegate(string collection, string id, JSONObject fields);
-	public delegate void OnChangedDelegate(string collection, string id, JSONObject fields, JSONObject cleared);
-	public delegate void OnRemovedDelegate(string collection, string id);
-	public delegate void OnAddedBeforeDelegate(string collection, string id, JSONObject fields, string before);
-	public delegate void OnMovedBeforeDelegate(string collection, string id, string before);
+	public delegate void OnAddedDelegate(string collection, string docId, JSONObject fields);
+	public delegate void OnChangedDelegate(string collection, string docId, JSONObject fields, JSONObject cleared);
+	public delegate void OnRemovedDelegate(string collection, string docId);
+	public delegate void OnAddedBeforeDelegate(string collection, string docId, JSONObject fields, string before);
+	public delegate void OnMovedBeforeDelegate(string collection, string docId, string before);
 	public delegate void OnErrorDelegate(DdpError error);
 
 	public event OnConnectedDelegate OnConnected;

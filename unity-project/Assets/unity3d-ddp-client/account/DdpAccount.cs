@@ -38,7 +38,7 @@ public class DdpAccount {
 		if (error == null) {
 			JSONObject result = loginCall.result;
 			isLogged = true;
-			this.username = username;
+			this.username = result["username"].str;
 			this.userId = result["id"].str;
 			this.token = result["token"].str;
 			this.tokenExpiration = result["tokenExpires"].GetDateTime();
