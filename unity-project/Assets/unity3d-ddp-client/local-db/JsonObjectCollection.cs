@@ -29,16 +29,23 @@ public class JsonObjectCollection : DocumentCollection {
 		documents.Add(docId, fields);
 	}
 
-	// TODO: This implementation is not tested, and is probably not complete.
 	public void Change(string docId, JSONObject fields, JSONObject cleared) {
 		if (OnChanged != null) {
 			OnChanged(docId, fields, cleared);
 		}
 
 		JSONObject document = documents[docId];
-		document.Merge(fields);
-		foreach (JSONObject field in cleared.list) {
-			document.RemoveField(field.str);
+
+		if (fields != null) {
+			foreach (string field in fields.keys) {
+				document.SetField(field, fields[field]);
+			}
+		}
+
+		if (cleared != null) {
+			foreach (JSONObject field in cleared.list) {
+				document.RemoveField(field.str);
+			}
 		}
 	}
 

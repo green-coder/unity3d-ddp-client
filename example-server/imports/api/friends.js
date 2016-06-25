@@ -16,6 +16,24 @@ Meteor.methods({
   'friends.removeAll'() {
     Friends.remove({});
   },
+  'friends.addAttributes'(name, fields) {
+    Friends.update(
+      {
+        name: name
+      },
+      {
+        $set: fields
+      });
+  },
+  'friends.removeAttributes'(name, fields) {
+    Friends.update(
+      {
+        name: name
+      },
+      {
+        $unset: fields
+      });
+  },
   'friends.add'(a, b) {
     return a + b;
   }

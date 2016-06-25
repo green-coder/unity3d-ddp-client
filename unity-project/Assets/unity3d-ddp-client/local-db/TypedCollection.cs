@@ -36,7 +36,6 @@ public class TypedCollection<DocType> : DocumentCollection {
 		documents.Add(docId, document);
 	}
 
-	// TODO: This implementation is not tested, and is probably not complete.
 	public void Change(string docId, JSONObject fields, JSONObject cleared) {
 		JSONObject jsonDocument = DocumentToJSONObject(documents[docId]);
 
@@ -45,9 +44,16 @@ public class TypedCollection<DocType> : DocumentCollection {
 			oldDocument = JSONObjectToDocument(jsonDocument.Copy());
 		}
 
-		jsonDocument.Merge(fields);
-		foreach (JSONObject field in cleared.list) {
-			jsonDocument.RemoveField(field.str);
+		if (fields != null) {
+			foreach (string field in fields.keys) {
+				jsonDocument.SetField(field, fields[field]);
+			}
+		}
+
+		if (cleared != null) {
+			foreach (JSONObject field in cleared.list) {
+				jsonDocument.RemoveField(field.str);
+			}
 		}
 
 		DocType newDocument = JSONObjectToDocument(jsonDocument);

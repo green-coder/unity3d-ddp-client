@@ -79,19 +79,32 @@ public class TestLocalDB : MonoBehaviour {
 		}
 
 		if (Input.GetKeyDown(KeyCode.F)) {
-			MethodCall methodCall = ddpConnection.Call("friends.create", JSONObject.CreateStringObject("Coco"));
-			methodCall.OnUpdated = (MethodCall obj) => {
-				Debug.Log("Updated, methodId=" + obj.id);
-			};
-			methodCall.OnResult = (MethodCall obj) => {
-				Debug.Log("Result = " + obj.result);
-			};
+			ddpConnection.Call("friends.create", JSONObject.CreateStringObject("Coco"));
 		}
 
 		if (Input.GetKeyDown(KeyCode.D)) {
 			foreach (var entry in friendCollection.documents) {
 				Debug.Log(entry.Key + " " + entry.Value);
 			}
+		}
+
+		if (Input.GetKeyDown(KeyCode.O)) {
+			JSONObject parents = new JSONObject();
+			parents.AddField("mother", "wonder woman");
+			parents.AddField("father", "batman");
+			JSONObject attr = new JSONObject();
+			attr.AddField("age", 24);
+			attr.AddField("height", 180);
+			attr.AddField("parents", parents);
+			ddpConnection.Call("friends.addAttributes", JSONObject.StringObject("Coco"), attr);
+		}
+
+		if (Input.GetKeyDown(KeyCode.P)) {
+			JSONObject attr = new JSONObject();
+			attr.AddField("age", 1);
+			attr.AddField("height", 1);
+			attr.AddField("parents.mother", 1);
+			ddpConnection.Call("friends.removeAttributes", JSONObject.StringObject("Coco"), attr);
 		}
 
 	}
