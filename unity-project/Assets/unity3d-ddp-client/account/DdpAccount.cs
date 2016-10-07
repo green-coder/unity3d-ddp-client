@@ -9,7 +9,6 @@ public class DdpAccount {
 	private DdpConnection connection;
 
 	public bool isLogged;
-	public string username;
 	public string userId;
 	public string token;
 	public DateTime tokenExpiration;
@@ -38,7 +37,6 @@ public class DdpAccount {
 		if (error == null) {
 			JSONObject result = loginCall.result;
 			isLogged = true;
-			this.username = result["username"].str;
 			this.userId = result["id"].str;
 			this.token = result["token"].str;
 			this.tokenExpiration = result["tokenExpires"].GetDateTime();
@@ -50,7 +48,6 @@ public class DdpAccount {
 
 		if (error == null) {
 			isLogged = false;
-			this.username = null;
 			this.userId = null;
 			this.token = null;
 			this.tokenExpiration = default(DateTime);
