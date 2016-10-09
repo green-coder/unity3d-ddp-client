@@ -22,7 +22,7 @@ public class DdpAccount {
 	private JSONObject GetPasswordObj(string password) {
 		string digest = BitConverter.ToString(
 			new SHA256Managed().ComputeHash(Encoding.UTF8.GetBytes(password)))
-			.Replace("-", "");
+			.Replace("-", "").ToLower();
 
 		JSONObject passwordObj = JSONObject.Create();
 		passwordObj.AddField("digest", digest);
