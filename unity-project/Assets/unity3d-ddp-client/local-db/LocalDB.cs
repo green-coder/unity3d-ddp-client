@@ -3,71 +3,75 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-public class LocalDB {
+namespace DDP {
 
-	private Func<LocalDB, string, DocumentCollection> CreateCollection;
-	private DdpConnection connection;
-	private Dictionary<string, DocumentCollection> collections = new Dictionary<string, DocumentCollection>();
+	public class LocalDB {
 
-	public LocalDB(Func<LocalDB, string, DocumentCollection> CreateCollection) {
-		this.CreateCollection = CreateCollection;
-	}
+		private Func<LocalDB, string, DocumentCollection> CreateCollection;
+		private DdpConnection connection;
+		private Dictionary<string, DocumentCollection> collections = new Dictionary<string, DocumentCollection>();
 
-	public LocalDB(Func<LocalDB, string, DocumentCollection> CreateCollection, DdpConnection connection) {
-		this.CreateCollection = CreateCollection;
-		SetConnection(connection);
-	}
-
-	public void SetConnection(DdpConnection connection) {
-		if (this.connection != null) {
-			this.connection.OnAdded -= Add;
-			this.connection.OnRemoved -= Remove;
-			this.connection.OnChanged -= Change;
-			this.connection.OnAddedBefore -= AddBefore;
-			this.connection.OnMovedBefore -= MoveBefore;
-			this.connection = null;
+		public LocalDB(Func<LocalDB, string, DocumentCollection> CreateCollection) {
+			this.CreateCollection = CreateCollection;
 		}
 
-		if (connection != null) {
-			this.connection = connection;
-			this.connection.OnAdded += Add;
-			this.connection.OnRemoved += Remove;
-			this.connection.OnChanged += Change;
-			this.connection.OnAddedBefore += AddBefore;
-			this.connection.OnMovedBefore += MoveBefore;
-		}
-	}
-
-	public DocumentCollection GetCollection(string collectionName) {
-		if (!collections.ContainsKey(collectionName)) {
-			collections[collectionName] = CreateCollection(this, collectionName);
+		public LocalDB(Func<LocalDB, string, DocumentCollection> CreateCollection, DdpConnection connection) {
+			this.CreateCollection = CreateCollection;
+			SetConnection(connection);
 		}
 
-		return collections[collectionName];
-	}
+		public void SetConnection(DdpConnection connection) {
+			if (this.connection != null) {
+				this.connection.OnAdded -= Add;
+				this.connection.OnRemoved -= Remove;
+				this.connection.OnChanged -= Change;
+				this.connection.OnAddedBefore -= AddBefore;
+				this.connection.OnMovedBefore -= MoveBefore;
+				this.connection = null;
+			}
 
-	public void Add(string collectionName, string docId, JSONObject fields) {
-		GetCollection(collectionName).Add(docId, fields);
-	}
+			if (connection != null) {
+				this.connection = connection;
+				this.connection.OnAdded += Add;
+				this.connection.OnRemoved += Remove;
+				this.connection.OnChanged += Change;
+				this.connection.OnAddedBefore += AddBefore;
+				this.connection.OnMovedBefore += MoveBefore;
+			}
+		}
 
-	public void Change(string collectionName, string docId, JSONObject fields, JSONObject cleared) {
-		GetCollection(collectionName).Change(docId, fields, cleared);
-	}
+		public DocumentCollection GetCollection(string collectionName) {
+			if (!collections.ContainsKey(collectionName)) {
+				collections[collectionName] = CreateCollection(this, collectionName);
+			}
 
-	public void Remove(string collectionName, string docId) {
-		GetCollection(collectionName).Remove(docId);
-	}
+			return collections[collectionName];
+		}
 
-	public void AddBefore(string collectionName, string docId, JSONObject fields, string before) {
-		GetCollection(collectionName).AddBefore(docId, fields, before);
-	}
+		public void Add(string collectionName, string docId, JSONObject fields) {
+			GetCollection(collectionName).Add(docId, fields);
+		}
 
-	public void MoveBefore(string collectionName, string docId, string before) {
-		GetCollection(collectionName).MoveBefore(docId, before);
-	}
+		public void Change(string collectionName, string docId, JSONObject fields, JSONObject cleared) {
+			GetCollection(collectionName).Change(docId, fields, cleared);
+		}
 
-	public void ClearCollections() {
-		collections.Clear();
+		public void Remove(string collectionName, string docId) {
+			GetCollection(collectionName).Remove(docId);
+		}
+
+		public void AddBefore(string collectionName, string docId, JSONObject fields, string before) {
+			GetCollection(collectionName).AddBefore(docId, fields, before);
+		}
+
+		public void MoveBefore(string collectionName, string docId, string before) {
+			GetCollection(collectionName).MoveBefore(docId, before);
+		}
+
+		public void ClearCollections() {
+			collections.Clear();
+		}
+
 	}
 
 }

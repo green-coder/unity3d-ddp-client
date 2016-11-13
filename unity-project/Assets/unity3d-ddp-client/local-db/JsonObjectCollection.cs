@@ -2,68 +2,72 @@
 using System.Collections;
 using System.Collections.Generic;
 
-public class JsonObjectCollection : DocumentCollection {
+namespace DDP {
 
-	protected LocalDB db;
-	public string collectionName;
-	public Dictionary<string, JSONObject> documents = new Dictionary<string, JSONObject>();
+	public class JsonObjectCollection : DocumentCollection {
 
-	public delegate void OnAddedDelegate(string docId, JSONObject fields);
-	public delegate void OnChangedDelegate(string docId, JSONObject fields, JSONObject cleared);
-	public delegate void OnRemovedDelegate(string docId);
+		protected LocalDB db;
+		public string collectionName;
+		public Dictionary<string, JSONObject> documents = new Dictionary<string, JSONObject>();
 
-	public event OnAddedDelegate OnAdded;
-	public event OnChangedDelegate OnChanged;
-	public event OnRemovedDelegate OnRemoved;
+		public delegate void OnAddedDelegate(string docId, JSONObject fields);
+		public delegate void OnChangedDelegate(string docId, JSONObject fields, JSONObject cleared);
+		public delegate void OnRemovedDelegate(string docId);
 
-	public JsonObjectCollection(LocalDB db, string collectionName) {
-		this.db = db;
-		this.collectionName = collectionName;
-	}
+		public event OnAddedDelegate OnAdded;
+		public event OnChangedDelegate OnChanged;
+		public event OnRemovedDelegate OnRemoved;
 
-	public void Add(string docId, JSONObject fields) {
-		if (OnAdded != null) {
-			OnAdded(docId, fields);
+		public JsonObjectCollection(LocalDB db, string collectionName) {
+			this.db = db;
+			this.collectionName = collectionName;
 		}
 
-		documents.Add(docId, fields);
-	}
+		public void Add(string docId, JSONObject fields) {
+			if (OnAdded != null) {
+				OnAdded(docId, fields);
+			}
 
-	public void Change(string docId, JSONObject fields, JSONObject cleared) {
-		if (OnChanged != null) {
-			OnChanged(docId, fields, cleared);
+			documents.Add(docId, fields);
 		}
 
-		JSONObject document = documents[docId];
+		public void Change(string docId, JSONObject fields, JSONObject cleared) {
+			if (OnChanged != null) {
+				OnChanged(docId, fields, cleared);
+			}
 
-		if (fields != null) {
-			foreach (string field in fields.keys) {
-				document.SetField(field, fields[field]);
+			JSONObject document = documents[docId];
+
+			if (fields != null) {
+				foreach (string field in fields.keys) {
+					document.SetField(field, fields[field]);
+				}
+			}
+
+			if (cleared != null) {
+				foreach (JSONObject field in cleared.list) {
+					document.RemoveField(field.str);
+				}
 			}
 		}
 
-		if (cleared != null) {
-			foreach (JSONObject field in cleared.list) {
-				document.RemoveField(field.str);
+		public void Remove(string docId) {
+			if (OnRemoved != null) {
+				OnRemoved(docId);
 			}
-		}
-	}
 
-	public void Remove(string docId) {
-		if (OnRemoved != null) {
-			OnRemoved(docId);
+			documents.Remove(docId);
 		}
 
-		documents.Remove(docId);
-	}
+		public void AddBefore(string docId, JSONObject fields, string before) {
+			// For now, collection ordering is not supported.
+			Add(docId, fields);
+		}
 
-	public void AddBefore(string docId, JSONObject fields, string before) {
-		// For now, collection ordering is not supported.
-		Add(docId, fields);
-	}
+		public void MoveBefore(string docId, string before) {
+			// For now, collection ordering is not supported.
+		}
 
-	public void MoveBefore(string docId, string before) {
-		// For now, collection ordering is not supported.
 	}
 
 }

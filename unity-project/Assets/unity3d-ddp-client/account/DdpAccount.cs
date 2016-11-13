@@ -4,92 +4,96 @@ using System.Text;
 using System.Security.Cryptography;
 using System.Collections;
 
-public class DdpAccount {
+namespace DDP {
 
-	private DdpConnection connection;
+	public class DdpAccount {
 
-	public bool isLogged;
-	public string userId;
-	public string token;
-	public DateTime tokenExpiration;
+		private DdpConnection connection;
 
-	public DdpError error;
+		public bool isLogged;
+		public string userId;
+		public string token;
+		public DateTime tokenExpiration;
 
-	public DdpAccount(DdpConnection connection) {
-		this.connection = connection;
-	}
+		public DdpError error;
 
-	private JSONObject GetPasswordObj(string password) {
-		string digest = BitConverter.ToString(
-			new SHA256Managed().ComputeHash(Encoding.UTF8.GetBytes(password)))
-			.Replace("-", "").ToLower();
-
-		JSONObject passwordObj = JSONObject.Create();
-		passwordObj.AddField("digest", digest);
-		passwordObj.AddField("algorithm", "sha-256");
-
-		return passwordObj;
-	}
-
-	private void HandleLoginResult(MethodCall loginCall) {
-		error = loginCall.error;
-
-		if (error == null) {
-			JSONObject result = loginCall.result;
-			isLogged = true;
-			this.userId = result["id"].str;
-			this.token = result["token"].str;
-			this.tokenExpiration = result["tokenExpires"].GetDateTime();
+		public DdpAccount(DdpConnection connection) {
+			this.connection = connection;
 		}
-	}
 
-	private void HandleLogoutResult(MethodCall logoutCall) {
-		error = logoutCall.error;
+		private JSONObject GetPasswordObj(string password) {
+			string digest = BitConverter.ToString(
+				new SHA256Managed().ComputeHash(Encoding.UTF8.GetBytes(password)))
+				.Replace("-", "").ToLower();
 
-		if (error == null) {
-			isLogged = false;
-			this.userId = null;
-			this.token = null;
-			this.tokenExpiration = default(DateTime);
+			JSONObject passwordObj = JSONObject.Create();
+			passwordObj.AddField("digest", digest);
+			passwordObj.AddField("algorithm", "sha-256");
+
+			return passwordObj;
 		}
-	}
 
-	public IEnumerator CreateUserAndLogin(string username, string password) {
-		JSONObject loginPasswordObj = JSONObject.Create();
-		loginPasswordObj.AddField("username", username);
-		loginPasswordObj.AddField("password", GetPasswordObj(password));
+		private void HandleLoginResult(MethodCall loginCall) {
+			error = loginCall.error;
 
-		MethodCall loginCall = connection.Call("createUser", loginPasswordObj);
-		yield return loginCall.WaitForResult();
-		HandleLoginResult(loginCall);
-	}
+			if (error == null) {
+				JSONObject result = loginCall.result;
+				isLogged = true;
+				this.userId = result["id"].str;
+				this.token = result["token"].str;
+				this.tokenExpiration = result["tokenExpires"].GetDateTime();
+			}
+		}
 
-	public IEnumerator Login(string username, string password) {
-		JSONObject userObj = JSONObject.Create();
-		userObj.AddField("username", username);
+		private void HandleLogoutResult(MethodCall logoutCall) {
+			error = logoutCall.error;
 
-		JSONObject loginPasswordObj = JSONObject.Create();
-		loginPasswordObj.AddField("user", userObj);
-		loginPasswordObj.AddField("password", GetPasswordObj(password));
+			if (error == null) {
+				isLogged = false;
+				this.userId = null;
+				this.token = null;
+				this.tokenExpiration = default(DateTime);
+			}
+		}
 
-		MethodCall loginCall = connection.Call("login", loginPasswordObj);
-		yield return loginCall.WaitForResult();
-		HandleLoginResult(loginCall);
-	}
+		public IEnumerator CreateUserAndLogin(string username, string password) {
+			JSONObject loginPasswordObj = JSONObject.Create();
+			loginPasswordObj.AddField("username", username);
+			loginPasswordObj.AddField("password", GetPasswordObj(password));
 
-	public IEnumerator ResumeSession(string token) {
-		JSONObject tokenObj = JSONObject.Create();
-		tokenObj.AddField("resume", token);
+			MethodCall loginCall = connection.Call("createUser", loginPasswordObj);
+			yield return loginCall.WaitForResult();
+			HandleLoginResult(loginCall);
+		}
 
-		MethodCall loginCall = connection.Call("login", tokenObj);
-		yield return loginCall.WaitForResult();
-		HandleLoginResult(loginCall);
-	}
+		public IEnumerator Login(string username, string password) {
+			JSONObject userObj = JSONObject.Create();
+			userObj.AddField("username", username);
 
-	public IEnumerator Logout() {
-		MethodCall logoutCall = connection.Call("logout");
-		yield return logoutCall.WaitForResult();
-		HandleLogoutResult(logoutCall);
+			JSONObject loginPasswordObj = JSONObject.Create();
+			loginPasswordObj.AddField("user", userObj);
+			loginPasswordObj.AddField("password", GetPasswordObj(password));
+
+			MethodCall loginCall = connection.Call("login", loginPasswordObj);
+			yield return loginCall.WaitForResult();
+			HandleLoginResult(loginCall);
+		}
+
+		public IEnumerator ResumeSession(string token) {
+			JSONObject tokenObj = JSONObject.Create();
+			tokenObj.AddField("resume", token);
+
+			MethodCall loginCall = connection.Call("login", tokenObj);
+			yield return loginCall.WaitForResult();
+			HandleLoginResult(loginCall);
+		}
+
+		public IEnumerator Logout() {
+			MethodCall logoutCall = connection.Call("logout");
+			yield return logoutCall.WaitForResult();
+			HandleLogoutResult(logoutCall);
+		}
+
 	}
 
 }
