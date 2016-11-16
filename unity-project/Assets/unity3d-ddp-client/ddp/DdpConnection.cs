@@ -69,8 +69,10 @@ namespace DDP {
 
 		public enum ConnectionState {
 			NOT_CONNECTED,
-			DISCONNECTED,
+			CONNECTING,
 			CONNECTED,
+			DISCONNECTED,
+			CLOSING,
 			CLOSED
 		}
 
@@ -92,6 +94,7 @@ namespace DDP {
 
 		public delegate void OnConnectedDelegate(DdpConnection connection);
 		public delegate void OnDisconnectedDelegate(DdpConnection connection);
+		public delegate void OnConnectionClosedDelegate(DdpConnection connection);
 		public delegate void OnAddedDelegate(string collection, string docId, JSONObject fields);
 		public delegate void OnChangedDelegate(string collection, string docId, JSONObject fields, JSONObject cleared);
 		public delegate void OnRemovedDelegate(string collection, string docId);
@@ -101,6 +104,7 @@ namespace DDP {
 
 		public event OnConnectedDelegate OnConnected;
 		public event OnDisconnectedDelegate OnDisconnected;
+		public event OnConnectionClosedDelegate OnConnectionClosed;
 		public event OnAddedDelegate OnAdded;
 		public event OnChangedDelegate OnChanged;
 		public event OnRemovedDelegate OnRemoved;
@@ -146,8 +150,15 @@ namespace DDP {
 		private void OnWebSocketClose(object sender, WebSocketSharp.CloseEventArgs e) {
 			if (e.WasClean) {
 				ddpConnectionState = ConnectionState.CLOSED;
-			}
-			else {
+				sessionId = null;
+				subscriptions.Clear();
+				methodCalls.Clear();
+				coroutineHelper.RunInMainThread(() => {
+					if (OnDisconnected != null) {
+						OnDisconnected(this);
+					}
+				});
+			} else {
 				ddpConnectionState = ConnectionState.DISCONNECTED;
 				coroutineHelper.RunInMainThread(() => {
 					if (OnDisconnected != null) {
@@ -432,15 +443,19 @@ namespace DDP {
 		}
 
 		public void Connect() {
-			ws.ConnectAsync();
+			if ((ddpConnectionState == ConnectionState.NOT_CONNECTED) ||
+  			  (ddpConnectionState == ConnectionState.DISCONNECTED) ||
+  			  (ddpConnectionState == ConnectionState.CLOSED)) {
+  			ddpConnectionState = ConnectionState.CONNECTING;
+  			ws.ConnectAsync();
+			}
 		}
 
 		public void Close() {
-			ws.Close();
-
-			sessionId = null;
-			subscriptions.Clear();
-			methodCalls.Clear();
+			if (ddpConnectionState == ConnectionState.CONNECTED) {
+				ddpConnectionState = ConnectionState.CLOSING;
+				ws.Close();
+			}
 		}
 
 		void IDisposable.Dispose() {

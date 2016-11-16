@@ -28,6 +28,10 @@ public class TestDdpClient : MonoBehaviour {
 			}, 2.0f));
 		};
 
+		ddpConnection.OnConnectionClosed += (DdpConnection connection) => {
+			Debug.Log("Connection closed.");
+		};
+
 		ddpConnection.OnError += (DdpError error) => {
 			Debug.Log("Error: " + error.errorCode + " " + error.reason);
 		};
@@ -73,6 +77,7 @@ public class TestDdpClient : MonoBehaviour {
 		}
 
 		if (Input.GetKeyDown(KeyCode.V)) {
+			Debug.Log("Closing connection ...");
 			ddpConnection.Close();
 		}
 
