@@ -38,6 +38,8 @@ public class TestDdpAccount : MonoBehaviour {
 	private DdpAccount account;
 
 	public void Start() {
+		Application.runInBackground = true; // Let the game run when the editor is not focused.
+
 		ddpConnection = new DdpConnection(serverUrl);
 		ddpConnection.logMessages = logMessages;
 
