@@ -22,7 +22,7 @@
 	SOFTWARE.
 */
 
-﻿namespace DDP {
+namespace Moulin.DDP {
 
 	public interface DocumentCollection {
 		void Add(string docId, JSONObject fields);

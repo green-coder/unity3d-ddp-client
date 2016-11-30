@@ -22,18 +22,18 @@
 	SOFTWARE.
 */
 
-﻿using System;
+﻿using UnityEngine;
+using System;
+using System.Collections;
 
-namespace DDP {
+namespace Moulin.DDP {
 
-	public static class JSONObjectExtensions {
-
-		private static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-
-		public static DateTime GetDateTime(this JSONObject obj) {
-			return epoch.AddMilliseconds(obj["$date"].i);
-		}
-
+	public class DdpError {
+		public string errorCode;
+		public string reason;
+		public string message;
+		public string errorType;
+		public string offendingMessage;
 	}
 
 }

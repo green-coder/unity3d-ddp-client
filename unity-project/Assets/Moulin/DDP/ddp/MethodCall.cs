@@ -23,49 +23,32 @@
 */
 
 ﻿using UnityEngine;
-using System.Threading.Collections;
 using System;
 using System.Collections;
 
-namespace DDP {
+namespace Moulin.DDP {
 
-	public class CoroutineHelper : MonoBehaviour {
+	public class MethodCall {
 
-		private static CoroutineHelper coroutineHelper;
+		public string id;
+		public string methodName;
+		public JSONObject[] items;
 
-		public static CoroutineHelper GetInstance() {
-			if (coroutineHelper == null) {
-				GameObject gameObject = new GameObject();
-				gameObject.name = "CoroutineHelper";
-				coroutineHelper = gameObject.AddComponent<CoroutineHelper>();
+		public bool hasUpdated;
+		public Action<MethodCall> OnUpdated;
+
+		public JSONObject result;
+		public bool hasResult;
+		public Action<MethodCall> OnResult;
+
+		public DdpError error;
+
+		public IEnumerator WaitForResult() {
+			while (!hasResult) {
+				yield return null;
 			}
-			return coroutineHelper;
-		}
 
-		private ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
-
-		public void RunInMainThread(Action action) {
-			actionQueue.Enqueue(action);
-		}
-
-		public void LaunchFromMainThread(IEnumerator coroutine) {
-			actionQueue.Enqueue(() => StartCoroutine(coroutine));
-		}
-
-		public void RunInMainThreadAfter(Action action, float delay) {
-			LaunchFromMainThread(RunAfter(action, delay));
-		}
-
-		public IEnumerator RunAfter(Action action, float delay) {
-			yield return new WaitForSeconds(delay);
-			action();
-		}
-
-		public void Update() {
-			Action action = null;
-			while (actionQueue.TryDequeue(out action)) {
-				action();
-			}
+			yield break;
 		}
 
 	}

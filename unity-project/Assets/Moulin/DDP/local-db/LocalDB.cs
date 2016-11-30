@@ -27,7 +27,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace DDP {
+namespace Moulin.DDP {
 
 	public class LocalDB {
 

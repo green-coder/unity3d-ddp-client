@@ -24,7 +24,7 @@
 
 ﻿using UnityEngine;
 using System.Collections;
-using DDP;
+using Moulin.DDP;
 
 public class TestDdpClient : MonoBehaviour {
 

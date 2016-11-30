@@ -28,7 +28,7 @@ using System.Text;
 using System.Security.Cryptography;
 using System.Collections;
 
-namespace DDP {
+namespace Moulin.DDP {
 
 	public class DdpAccount {
 

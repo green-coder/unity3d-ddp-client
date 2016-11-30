@@ -28,7 +28,7 @@ using System.Threading.Collections;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace DDP {
+namespace Moulin.DDP {
 
 	/*
 	 * DDP protocol:

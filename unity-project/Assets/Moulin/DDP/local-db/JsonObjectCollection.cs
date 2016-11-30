@@ -26,76 +26,58 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace DDP {
+namespace Moulin.DDP {
 
-	public class TypedCollection<DocType> : DocumentCollection {
+	public class JsonObjectCollection : DocumentCollection {
 
-		//private LocalDb db;
-		private Func<JSONObject, DocType> JSONObjectToDocument;
-		private Func<DocType, JSONObject> DocumentToJSONObject;
-
+		protected LocalDB db;
 		public string collectionName;
-		public Dictionary<string, DocType> documents = new Dictionary<string, DocType>();
+		public Dictionary<string, JSONObject> documents = new Dictionary<string, JSONObject>();
 
-		public delegate void OnAddedDelegate(DocType document);
-		public delegate void OnChangedDelegate(DocType oldDocument, DocType newDocument);
-		public delegate void OnRemovedDelegate(DocType document);
+		public delegate void OnAddedDelegate(string docId, JSONObject fields);
+		public delegate void OnChangedDelegate(string docId, JSONObject fields, JSONObject cleared);
+		public delegate void OnRemovedDelegate(string docId);
 
 		public event OnAddedDelegate OnAdded;
 		public event OnChangedDelegate OnChanged;
 		public event OnRemovedDelegate OnRemoved;
 
-		public TypedCollection(LocalDB db, string collectionName,
-							Func<JSONObject, DocType> JSONObjectToDocument,
-							Func<DocType, JSONObject> DocumentToJSONObject) {
-			//this.db = db;
+		public JsonObjectCollection(LocalDB db, string collectionName) {
+			this.db = db;
 			this.collectionName = collectionName;
-			this.JSONObjectToDocument = JSONObjectToDocument;
-			this.DocumentToJSONObject = DocumentToJSONObject;
 		}
 
 		public void Add(string docId, JSONObject fields) {
-			DocType document = JSONObjectToDocument(fields);
 			if (OnAdded != null) {
-				OnAdded(document);
+				OnAdded(docId, fields);
 			}
-			documents.Add(docId, document);
+
+			documents.Add(docId, fields);
 		}
 
 		public void Change(string docId, JSONObject fields, JSONObject cleared) {
-			JSONObject jsonDocument = DocumentToJSONObject(documents[docId]);
-
-			DocType oldDocument = default(DocType);
 			if (OnChanged != null) {
-				oldDocument = JSONObjectToDocument(jsonDocument.Copy());
+				OnChanged(docId, fields, cleared);
 			}
+
+			JSONObject document = documents[docId];
 
 			if (fields != null) {
 				foreach (string field in fields.keys) {
-					jsonDocument.SetField(field, fields[field]);
+					document.SetField(field, fields[field]);
 				}
 			}
 
 			if (cleared != null) {
 				foreach (JSONObject field in cleared.list) {
-					jsonDocument.RemoveField(field.str);
+					document.RemoveField(field.str);
 				}
 			}
-
-			DocType newDocument = JSONObjectToDocument(jsonDocument);
-
-			if (OnChanged != null) {
-				OnChanged(oldDocument, newDocument);
-			}
-
-			documents[docId] = newDocument;
 		}
 
 		public void Remove(string docId) {
-			DocType document = documents[docId];
-
 			if (OnRemoved != null) {
-				OnRemoved(document);
+				OnRemoved(docId);
 			}
 
 			documents.Remove(docId);

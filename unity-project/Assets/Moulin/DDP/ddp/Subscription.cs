@@ -26,31 +26,14 @@
 using System;
 using System.Collections;
 
-namespace DDP {
+namespace Moulin.DDP {
 
-	public class MethodCall {
-
+	public class Subscription {
 		public string id;
-		public string methodName;
+		public string name;
 		public JSONObject[] items;
-
-		public bool hasUpdated;
-		public Action<MethodCall> OnUpdated;
-
-		public JSONObject result;
-		public bool hasResult;
-		public Action<MethodCall> OnResult;
-
-		public DdpError error;
-
-		public IEnumerator WaitForResult() {
-			while (!hasResult) {
-				yield return null;
-			}
-
-			yield break;
-		}
-
+		public bool isReady;
+		public Action<Subscription> OnReady;
 	}
 
 }
