@@ -156,7 +156,13 @@ public class TestDdpAccount : MonoBehaviour {
             {
                 string log = logQueue.Dequeue();
                 Debug.Log(log);
-                DebugText.text = log + "\n" + DebugText.text;
+                string[] original = DebugText.text.Split('\n');
+                List<string> logMessages = new List<string>();
+                for (int i = 0; i < Mathf.Min(original.Length, 10); i++)
+                {
+                    logMessages.Add(original[i]);
+                }
+                DebugText.text = log + "\n" + string.Join("\n", logMessages);
             }
         }
 
