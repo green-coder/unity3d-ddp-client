@@ -50,7 +50,7 @@ public class TestDdpClient : MonoBehaviour {
 
 			StartCoroutine(CoroutineHelper.GetInstance().RunAfter(() => {
 				Debug.Log("Try to reconnect ...");
-				connection.Connect();
+				connection.ConnectAsync();
 			}, 2.0f));
 		};
 
@@ -99,7 +99,7 @@ public class TestDdpClient : MonoBehaviour {
 	public void Update() {
 		if (Input.GetKeyDown(KeyCode.C)) {
 			Debug.Log("Connecting ...");
-			ddpConnection.Connect();
+			ddpConnection.ConnectAsync();
 		}
 
 		if (Input.GetKeyDown(KeyCode.V)) {

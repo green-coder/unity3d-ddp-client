@@ -25,7 +25,13 @@
 ﻿using UnityEngine;
 using System;
 using System.Text;
+#if WINDOWS_UWP
+using Windows.Security.Cryptography;
+using Windows.Security.Cryptography.Core;
+using Windows.Storage.Streams;
+#else
 using System.Security.Cryptography;
+#endif
 using System.Collections;
 
 namespace Moulin.DDP {
@@ -46,11 +52,34 @@ namespace Moulin.DDP {
 		}
 
 		private JSONObject GetPasswordObj(string password) {
-			string digest = BitConverter.ToString(
-				new SHA256Managed().ComputeHash(Encoding.UTF8.GetBytes(password)))
-				.Replace("-", "").ToLower();
+#if WINDOWS_UWP
+            // Convert the message string to binary data.
+            IBuffer buffUtf8Msg = CryptographicBuffer.ConvertStringToBinary(password, BinaryStringEncoding.Utf8);
 
-			JSONObject passwordObj = JSONObject.Create();
+            // Create a HashAlgorithmProvider object.
+            HashAlgorithmProvider objAlgProv = HashAlgorithmProvider.OpenAlgorithm(HashAlgorithmNames.Sha256);
+
+            // Demonstrate how to retrieve the name of the hashing algorithm.
+            string strAlgNameUsed = objAlgProv.AlgorithmName;
+
+            // Hash the message.
+            IBuffer buffHash = objAlgProv.HashData(buffUtf8Msg);
+
+            // Verify that the hash length equals the length specified for the algorithm.
+            if (buffHash.Length != objAlgProv.HashLength)
+            {
+                throw new Exception("There was an error creating the hash");
+            }
+
+            // Convert the hash to a string (for display).
+            string digest = CryptographicBuffer.EncodeToHexString(buffHash);
+#else
+            string digest = BitConverter.ToString(
+				new SHA256Managed().ComputeHash(Encoding.UTF8.GetBytes(password)));
+#endif
+            digest = digest.Replace("-", "").ToLower();
+
+            JSONObject passwordObj = JSONObject.Create();
 			passwordObj.AddField("digest", digest);
 			passwordObj.AddField("algorithm", "sha-256");
 

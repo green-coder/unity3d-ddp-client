@@ -22,14 +22,15 @@
 	SOFTWARE.
 */
 
-﻿using UnityEngine;
-using System.Threading.Collections;
+using UnityEngine;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 
-namespace Moulin.DDP {
+namespace Moulin.DDP
+{
 
-	public class CoroutineHelper : MonoBehaviour {
+    public class CoroutineHelper : MonoBehaviour {
 
 		private static CoroutineHelper coroutineHelper;
 

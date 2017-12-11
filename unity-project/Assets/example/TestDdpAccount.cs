@@ -2,6 +2,7 @@
 	The MIT License (MIT)
 
 	Copyright (c) 2016 Vincent Cantin (user "green-coder" on Github.com)
+    Copyright (c) 2017 Andreas Bresser <self@andreasbresser.de>
 
 	Permission is hereby granted, free of charge, to any person obtaining a copy of
 	this software and associated documentation files (the "Software"), to deal in
@@ -22,11 +23,14 @@
 	SOFTWARE.
 */
 
-﻿using UnityEngine;
-using System.Collections;
+using UnityEngine;
 using Moulin.DDP;
+using UnityEngine.UI;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 public class TestDdpAccount : MonoBehaviour {
+    public Text DebugText;
 
 	public string serverUrl = "ws://localhost:3000/websocket";
 	public string username;
@@ -34,94 +38,154 @@ public class TestDdpAccount : MonoBehaviour {
 	public string token;
 	public bool logMessages;
 
+    private Queue<string> logQueue;
+
 	private DdpConnection ddpConnection;
 	private DdpAccount account;
 
 	public void Start() {
-		Application.runInBackground = true; // Let the game run when the editor is not focused.
+        Application.runInBackground = true; // Let the game run when the editor is not focused.
 
-		ddpConnection = new DdpConnection(serverUrl);
-		ddpConnection.logMessages = logMessages;
+        // clear debug log
+        this.DebugText.text = ""; 
+        logQueue = new Queue<string>();
+
+        ddpConnection = new DdpConnection(serverUrl)
+        {
+            logMessages = logMessages
+        };
+        ddpConnection.OnDebugMessage += AddDebugText;
 
 		account = new DdpAccount(ddpConnection);
 
 		ddpConnection.OnConnected += (DdpConnection connection) => {
-			Debug.Log("Connected.");
+            AddDebugText("Connected.");
 		};
 
 		ddpConnection.OnDisconnected += (DdpConnection connection) => {
-			Debug.Log("Disconnected.");
+            AddDebugText("Disconnected.");
 
-			StartCoroutine(CoroutineHelper.GetInstance().RunAfter(() => {
-				Debug.Log("Try to reconnect ...");
-				connection.Connect();
+			StartCoroutine(CoroutineHelper.GetInstance().RunAfter(async () => {
+                AddDebugText("Try to reconnect ...");
+				await connection.ConnectAsync();
 			}, 2.0f));
 		};
 
 		ddpConnection.OnError += (DdpError error) => {
-			Debug.Log("Error: " + error.errorCode + " " + error.reason);
+            AddDebugText("Error: " + error.errorCode + " " + error.reason);
 		};
 
 		ddpConnection.OnAdded += (collection, id, fields) => {
-			Debug.Log("Added docId " + id +
+            AddDebugText("Added docId " + id +
 				" in collection " + collection);
 		};
 
 		ddpConnection.OnRemoved += (collection, id) => {
-			Debug.Log("Removed docId " + id +
+            AddDebugText("Removed docId " + id +
 				" in collection " + collection);
 		};
 
 		ddpConnection.OnChanged += (collection, id, fields, cleared) => {
-			Debug.Log("Changed docId " + id +
+            AddDebugText("Changed docId " + id +
 				" in collection " + collection +
 				" fields: " + fields +
 				" cleared:" + cleared);
 		};
 
 		ddpConnection.OnAddedBefore += (collection, id, fields, before) => {
-			Debug.Log("Added docId " + id +
+            AddDebugText("Added docId " + id +
 				" before docId " + before +
 				" in collection " + collection +
 				" fields: " + fields);
 		};
 
 		ddpConnection.OnMovedBefore += (collection, id, before) => {
-			Debug.Log("Moved docId " + id +
+            AddDebugText("Moved docId " + id +
 				" before docId " + before +
 				" in collection " + collection);
 		};
 
 	}
 
-	public void Update() {
+    public void Connect()
+    {
+        AddDebugText("Connecting ...");
+        Task.Run(() => ddpConnection.ConnectAsync());
+    }
+
+    public void Disconnect()
+    {
+        ddpConnection.Close();
+    }
+
+    public void CreateUserAndLogin()
+    {
+        StartCoroutine(account.CreateUserAndLogin(username, password));
+    }
+
+    public void Login()
+    {
+        StartCoroutine(account.Login(username, password));
+    }
+
+    public void ResumeSession()
+    {
+        StartCoroutine(account.ResumeSession(token));
+    }
+
+    public void TokenInformation()
+    {
+        AddDebugText("Token " + account.token + " expires at " + account.tokenExpiration);
+    }
+
+    public void Logout()
+    {
+        StartCoroutine(account.Logout());
+    }
+
+    public void AddDebugText(string text)
+    {
+        logQueue.Enqueue(text);
+    }
+
+
+    public void Update() {
+        if (logQueue != null)
+        {
+            while (logQueue.Count > 0)
+            {
+                string log = logQueue.Dequeue();
+                Debug.Log(log);
+                DebugText.text = log + "\n" + DebugText.text;
+            }
+        }
+
 		if (Input.GetKeyDown(KeyCode.C)) {
-			Debug.Log("Connecting ...");
-			ddpConnection.Connect();
+            Connect();
 		}
 
 		if (Input.GetKeyDown(KeyCode.V)) {
-			ddpConnection.Close();
+            Disconnect();
 		}
 
 		if (Input.GetKeyDown(KeyCode.U)) {
-			StartCoroutine(account.CreateUserAndLogin(username, password));
-		}
+            CreateUserAndLogin();
+        }
 
 		if (Input.GetKeyDown(KeyCode.L)) {
-			StartCoroutine(account.Login(username, password));
+            Login();
 		}
 
 		if (Input.GetKeyDown(KeyCode.R)) {
-			StartCoroutine(account.ResumeSession(token));
+            ResumeSession();
 		}
 
 		if (Input.GetKeyDown(KeyCode.T)) {
-			Debug.Log("Token " + account.token + " expires at " + account.tokenExpiration);
+            TokenInformation();
 		}
 
 		if (Input.GetKeyDown(KeyCode.O)) {
-			StartCoroutine(account.Logout());
+            Logout();
 		}
 	}
 }

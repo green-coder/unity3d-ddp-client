@@ -28,3 +28,7 @@ sysinfo.txt
 
 # Unity Package Manager
 /UnityPackageManager/
+
+# UWP WSA Certificates
+WSATestCertificate.pfx
+WSATestCertificate.pfx.meta

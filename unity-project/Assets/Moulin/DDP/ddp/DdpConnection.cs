@@ -24,11 +24,13 @@
 
 ﻿using UnityEngine;
 using System;
-using System.Threading.Collections;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
-namespace Moulin.DDP {
+namespace Moulin.DDP
+{
 
 	/*
 	 * DDP protocol:
@@ -91,7 +93,7 @@ namespace Moulin.DDP {
 			public const string OFFENDING_MESSAGE = "offendingMessage";
 		}
 
-		public enum ConnectionState {
+        public enum ConnectionState {
 			NOT_CONNECTED,
 			CONNECTING,
 			CONNECTED,
@@ -106,7 +108,7 @@ namespace Moulin.DDP {
 		private CoroutineHelper coroutineHelper;
 		private ConcurrentQueue<JSONObject> messageQueue = new ConcurrentQueue<JSONObject>();
 
-		private WebSocketSharp.WebSocket ws;
+        private WebSocketConnection ws;
 		private ConnectionState ddpConnectionState;
 		private string sessionId;
 
@@ -116,7 +118,8 @@ namespace Moulin.DDP {
 		private int subscriptionId;
 		private int methodCallId;
 
-		public delegate void OnConnectedDelegate(DdpConnection connection);
+        public delegate void OnDebugMessageDelegate(string message);
+        public delegate void OnConnectedDelegate(DdpConnection connection);
 		public delegate void OnDisconnectedDelegate(DdpConnection connection);
 		public delegate void OnConnectionClosedDelegate(DdpConnection connection);
 		public delegate void OnAddedDelegate(string collection, string docId, JSONObject fields);
@@ -126,6 +129,7 @@ namespace Moulin.DDP {
 		public delegate void OnMovedBeforeDelegate(string collection, string docId, string before);
 		public delegate void OnErrorDelegate(DdpError error);
 
+        public event OnDebugMessageDelegate OnDebugMessage;
 		public event OnConnectedDelegate OnConnected;
 		public event OnDisconnectedDelegate OnDisconnected;
 		public event OnConnectionClosedDelegate OnConnectionClosed;
@@ -141,60 +145,59 @@ namespace Moulin.DDP {
 		public DdpConnection(string url) {
 			coroutineHelper = CoroutineHelper.GetInstance();
 			coroutineHelper.StartCoroutine(HandleMessages());
-
-			ws = new WebSocketSharp.WebSocket(url);
+#if WINDOWS_UWP
+            ws = new WebSocketUWP(this, url);
+#else
+            ws = new WebSocketSystemNet(this, url);
+#endif
 			ws.OnOpen += OnWebSocketOpen;
 			ws.OnError += OnWebSocketError;
 			ws.OnClose += OnWebSocketClose;
 			ws.OnMessage += OnWebSocketMessage;
-		}
+        }
 
-		private void OnWebSocketOpen(object sender, EventArgs e) {
-			Send(GetConnectMessage());
+        private void OnWebSocketOpen() {
+            OnDebugMessage?.Invoke("OPEN!");
+			SendAsync(GetConnectMessage());
 
 			foreach (Subscription subscription in subscriptions.Values) {
-				Send(GetSubscriptionMessage(subscription));
+				SendAsync(GetSubscriptionMessage(subscription));
 			}
 			foreach (MethodCall methodCall in methodCalls.Values) {
-				Send(GetMethodCallMessage(methodCall));
+				SendAsync(GetMethodCallMessage(methodCall));
 			}
 		}
 
-		private void OnWebSocketError(object sender, WebSocketSharp.ErrorEventArgs e) {
+		private void OnWebSocketError(string reason) {
 			coroutineHelper.RunInMainThread(() => {
-				if (OnError != null) {
-					OnError(new DdpError() {
-						errorCode = "WebSocket error",
-						reason = e.Message
-					});
-				}
-			});
+                OnError?.Invoke(new DdpError()
+                {
+                    errorCode = "WebSocket error",
+                    reason = reason
+                });
+            });
 		}
 
-		private void OnWebSocketClose(object sender, WebSocketSharp.CloseEventArgs e) {
-			if (e.WasClean) {
+		private void OnWebSocketClose(bool wasClean) {
+			if (wasClean) {
 				ddpConnectionState = ConnectionState.CLOSED;
 				sessionId = null;
 				subscriptions.Clear();
 				methodCalls.Clear();
 				coroutineHelper.RunInMainThread(() => {
-					if (OnDisconnected != null) {
-						OnDisconnected(this);
-					}
-				});
+                    OnDisconnected?.Invoke(this);
+                });
 			} else {
 				ddpConnectionState = ConnectionState.DISCONNECTED;
 				coroutineHelper.RunInMainThread(() => {
-					if (OnDisconnected != null) {
-						OnDisconnected(this);
-					}
-				});
+                    OnDisconnected?.Invoke(this);
+                });
 			}
 		}
 
-		private void OnWebSocketMessage(object sender, WebSocketSharp.MessageEventArgs e) {
-			if (logMessages) Debug.Log("OnMessage: " + e.Data);
-			JSONObject message = new JSONObject(e.Data);
+		private void OnWebSocketMessage(string data) {
+			if (logMessages) OnDebugMessage?.Invoke("OnMessage: " + data);
+			JSONObject message = new JSONObject(data);
 			messageQueue.Enqueue(message);
 		}
 
@@ -218,111 +221,95 @@ namespace Moulin.DDP {
 			case MessageType.CONNECTED: {
 					sessionId = message[Field.SESSION].str;
 					ddpConnectionState = ConnectionState.CONNECTED;
-
-					if (OnConnected != null) {
-						OnConnected(this);
-					}
-					break;
+                    OnConnected?.Invoke(this);
+                    break;
 				}
 
 			case MessageType.FAILED: {
-					if (OnError != null) {
-						OnError(new DdpError() {
-							errorCode = "Connection refused",
-							reason = "The server is using an unsupported DDP protocol version: " +
-								message[Field.VERSION]
-						});
-					}
-					Close();
+                    OnError?.Invoke(new DdpError()
+                    {
+                        errorCode = "Connection refused",
+                        reason = "The server is using an unsupported DDP protocol version: " +
+                        message[Field.VERSION]
+                    });
+                    Close();
 					break;
 				}
 
 			case MessageType.PING: {
 					if (message.HasField(Field.ID)) {
-						Send(GetPongMessage(message[Field.ID].str));
+						SendAsync(GetPongMessage(message[Field.ID].str));
 					}
 					else {
-						Send(GetPongMessage());
+						SendAsync(GetPongMessage());
 					}
 					break;
 				}
 
 			case MessageType.NOSUB: {
-					string subscriptionId = message[Field.ID].str;
-					subscriptions.Remove(subscriptionId);
+				    string subscriptionId = message[Field.ID].str;
+				    subscriptions.Remove(subscriptionId);
 
-					if (message.HasField(Field.ERROR)) {
-						if (OnError != null) {
-							OnError(GetError(message[Field.ERROR]));
-						}
-					}
-					break;
-				}
+				    if (message.HasField(Field.ERROR)) {
+					    if (OnError != null) {
+						    OnError(GetError(message[Field.ERROR]));
+					    }
+				    }
+				    break;
+			    }
 
 			case MessageType.ADDED: {
-					if (OnAdded != null) {
-						OnAdded(
-							message[Field.COLLECTION].str,
-							message[Field.ID].str,
-							message[Field.FIELDS]);
-					}
-					break;
-				}
+                    OnAdded?.Invoke(
+                        message[Field.COLLECTION].str,
+                        message[Field.ID].str,
+                        message[Field.FIELDS]);
+                    break;
+			    }
 
 			case MessageType.CHANGED: {
-					if (OnChanged != null) {
-						OnChanged(
-							message[Field.COLLECTION].str,
-							message[Field.ID].str,
-							message[Field.FIELDS],
-							message[Field.CLEARED]);
-					}
-					break;
-				}
+                    OnChanged?.Invoke(
+                        message[Field.COLLECTION].str,
+                        message[Field.ID].str,
+                        message[Field.FIELDS],
+                        message[Field.CLEARED]);
+                    break;
+			    }
 
 			case MessageType.REMOVED: {
-					if (OnRemoved != null) {
-						OnRemoved(
-							message[Field.COLLECTION].str,
-							message[Field.ID].str);
-					}
-					break;
-				}
+                        OnRemoved?.Invoke(
+                            message[Field.COLLECTION].str,
+                            message[Field.ID].str);
+                        break;
+			    }
 
 			case MessageType.READY: {
-					string[] subscriptionIds = ToStringArray(message[Field.SUBS]);
+				    string[] subscriptionIds = ToStringArray(message[Field.SUBS]);
 
-					foreach (string subscriptionId in subscriptionIds) {
-						Subscription subscription = subscriptions[subscriptionId];
-						if (subscription != null) {
-							subscription.isReady = true;
-							if (subscription.OnReady != null) {
-								subscription.OnReady(subscription);
-							}
-						}
-					}
-					break;
-				}
+				    foreach (string subscriptionId in subscriptionIds) {
+					    Subscription subscription = subscriptions[subscriptionId];
+					    if (subscription != null) {
+						    subscription.isReady = true;
+                            subscription.OnReady?.Invoke(subscription);
+                        }
+				    }
+				    break;
+			    }
 
 			case MessageType.ADDED_BEFORE: {
-					if (OnAddedBefore != null) {
-						OnAddedBefore(
-							message[Field.COLLECTION].str,
-							message[Field.ID].str,
-							message[Field.FIELDS],
-							message[Field.BEFORE].str);
-					}
-					break;
-				}
+                     OnAddedBefore?.Invoke(
+                            message[Field.COLLECTION].str,
+                            message[Field.ID].str,
+                            message[Field.FIELDS],
+                            message[Field.BEFORE].str);
+                            break;
+			    }
 
 			case MessageType.MOVED_BEFORE: {
-					if (OnMovedBefore != null) {
-						OnMovedBefore(
-							message[Field.COLLECTION].str,
-							message[Field.ID].str,
-							message[Field.BEFORE].str);
-					}
-					break;
+                OnMovedBefore?.Invoke(
+                    message[Field.COLLECTION].str,
+                    message[Field.ID].str,
+                    message[Field.BEFORE].str);
+                    break;
 				}
 
 			case MessageType.RESULT: {
@@ -337,10 +324,8 @@ namespace Moulin.DDP {
 							methodCalls.Remove(methodCallId);
 						}
 						methodCall.hasResult = true;
-						if (methodCall.OnResult != null) {
-							methodCall.OnResult(methodCall);
-						}
-					}
+                        methodCall.OnResult?.Invoke(methodCall);
+                    }
 					break;
 				}
 
@@ -353,19 +338,15 @@ namespace Moulin.DDP {
 								methodCalls.Remove(methodCallId);
 							}
 							methodCall.hasUpdated = true;
-							if (methodCall.OnUpdated != null) {
-								methodCall.OnUpdated(methodCall);
-							}
-						}
+                            methodCall.OnUpdated?.Invoke(methodCall);
+                        }
 					}
 					break;
 				}
 
 			case MessageType.ERROR: {
-					if (OnError != null) {
-						OnError(GetError(message));
-					}
-					break;
+                    OnError?.Invoke(GetError(message));
+                    break;
 				}
 			}
 		}
@@ -457,33 +438,34 @@ namespace Moulin.DDP {
 			return result;
 		}
 
-		private void Send(string message) {
-			if (logMessages) Debug.Log("Send: " + message);
-			ws.Send(message);
+		private async Task SendAsync(string message) {
+			if (logMessages) OnDebugMessage?.Invoke("Send: " + message);
+            await ws.Send(message);
 		}
 
 		public ConnectionState GetConnectionState() {
 			return ddpConnectionState;
 		}
 
-		public void Connect() {
+		public async Task ConnectAsync() {
 			if ((ddpConnectionState == ConnectionState.NOT_CONNECTED) ||
   			  (ddpConnectionState == ConnectionState.DISCONNECTED) ||
   			  (ddpConnectionState == ConnectionState.CLOSED)) {
   			ddpConnectionState = ConnectionState.CONNECTING;
-  			ws.ConnectAsync();
+                await ws.ConnectAsync();
 			}
 		}
 
 		public void Close() {
 			if (ddpConnectionState == ConnectionState.CONNECTED) {
 				ddpConnectionState = ConnectionState.CLOSING;
-				ws.Close();
+                Task.Run(() => ws.CloseAsync());
 			}
 		}
 
 		void IDisposable.Dispose() {
 			Close();
+            ws.Dispose();
 		}
 
 		public Subscription Subscribe(string name, params JSONObject[] items) {
@@ -493,12 +475,12 @@ namespace Moulin.DDP {
 				items = items
 			};
 			subscriptions[subscription.id] = subscription;
-			Send(GetSubscriptionMessage(subscription));
+			SendAsync(GetSubscriptionMessage(subscription));
 			return subscription;
 		}
 
 		public void Unsubscribe(Subscription subscription) {
-			Send(GetUnsubscriptionMessage(subscription));
+			SendAsync(GetUnsubscriptionMessage(subscription));
 		}
 
 		public MethodCall Call(string methodName, params JSONObject[] items) {
@@ -508,7 +490,7 @@ namespace Moulin.DDP {
 				items = items
 			};
 			methodCalls[methodCall.id] = methodCall;
-			Send(GetMethodCallMessage(methodCall));
+			SendAsync(GetMethodCallMessage(methodCall));
 			return methodCall;
 		}
 
