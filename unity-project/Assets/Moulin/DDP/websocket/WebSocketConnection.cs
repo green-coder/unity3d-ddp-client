@@ -41,13 +41,15 @@ namespace Moulin.DDP
         public OnMessageDelegate OnMessage;
 
         protected DdpConnection ddpConnection;
-        
-        public virtual async Task ConnectAsync()
+
+        public virtual void Dispose()
         {
             throw new NotImplementedException();
         }
 
-        public virtual void Dispose()
+// functionality implemented in inherrited class, ignore async warning
+#pragma warning disable 1998
+        public virtual async Task ConnectAsync()
         {
             throw new NotImplementedException();
         }
@@ -61,5 +63,6 @@ namespace Moulin.DDP
         {
             throw new NotImplementedException();
         }
+#pragma warning restore 1998
     }
 }

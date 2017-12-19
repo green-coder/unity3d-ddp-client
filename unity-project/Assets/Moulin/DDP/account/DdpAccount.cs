@@ -25,6 +25,7 @@
 ﻿using UnityEngine;
 using System;
 using System.Text;
+using System.Threading.Tasks;
 #if WINDOWS_UWP
 using Windows.Security.Cryptography;
 using Windows.Security.Cryptography.Core;
@@ -109,17 +110,16 @@ namespace Moulin.DDP {
 			}
 		}
 
-		public IEnumerator CreateUserAndLogin(string username, string password) {
+		public async Task CreateUserAndLogin(string username, string password) {
 			JSONObject loginPasswordObj = JSONObject.Create();
 			loginPasswordObj.AddField("username", username);
 			loginPasswordObj.AddField("password", GetPasswordObj(password));
 
-			MethodCall loginCall = connection.Call("createUser", loginPasswordObj);
-			yield return loginCall.WaitForResult();
-			HandleLoginResult(loginCall);
+			MethodCall loginCall = await connection.CallAsync("createUser", loginPasswordObj);
+            loginCall.OnResult += HandleLoginResult;
 		}
 
-		public IEnumerator Login(string username, string password) {
+		public async Task Login(string username, string password) {
 			JSONObject userObj = JSONObject.Create();
 			userObj.AddField("username", username);
 
@@ -127,23 +127,20 @@ namespace Moulin.DDP {
 			loginPasswordObj.AddField("user", userObj);
 			loginPasswordObj.AddField("password", GetPasswordObj(password));
 
-			MethodCall loginCall = connection.Call("login", loginPasswordObj);
-			yield return loginCall.WaitForResult();
-			HandleLoginResult(loginCall);
+			MethodCall loginCall = await connection.CallAsync("login", loginPasswordObj);
+            loginCall.OnResult += HandleLoginResult;
 		}
 
-		public IEnumerator ResumeSession(string token) {
+		public async Task ResumeSession(string token) {
 			JSONObject tokenObj = JSONObject.Create();
 			tokenObj.AddField("resume", token);
 
-			MethodCall loginCall = connection.Call("login", tokenObj);
-			yield return loginCall.WaitForResult();
-			HandleLoginResult(loginCall);
+			MethodCall loginCall = await connection.CallAsync("login", tokenObj);
+            loginCall.OnResult += HandleLoginResult;
 		}
 
-		public IEnumerator Logout() {
-			MethodCall logoutCall = connection.Call("logout");
-			yield return logoutCall.WaitForResult();
+		public async Task Logout() {
+			MethodCall logoutCall = await connection.CallAsync("logout");
 			HandleLogoutResult(logoutCall);
 		}
 

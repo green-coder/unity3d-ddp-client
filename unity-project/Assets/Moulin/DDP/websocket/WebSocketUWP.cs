@@ -37,7 +37,6 @@ namespace Moulin.DDP
         {
             this.ddpConnection = ddpConnection;
             uri = new Uri(url);
-            Task.Run(() => ConnectAsync());
         }
 
 #if WINDOWS_UWP
@@ -46,38 +45,82 @@ namespace Moulin.DDP
 
         public override async Task ConnectAsync()
         {
-            messageWebSocket = new MessageWebSocket();
-            messageWebSocket.Control.MessageType = SocketMessageType.Utf8;
-            messageWebSocket.MessageReceived += MessageReceived;
-            messageWebSocket.Closed += Closed;
-            await messageWebSocket.ConnectAsync(uri);
-            messageWriter = new DataWriter(messageWebSocket.OutputStream);
-            OnOpen.Invoke();
+            try
+            {
+                if (messageWebSocket == null)
+                {
+                    messageWebSocket = new MessageWebSocket();
+                    messageWebSocket.Control.MessageType = SocketMessageType.Utf8;
+                    messageWebSocket.MessageReceived += MessageReceived;
+                    messageWebSocket.Closed += Closed;
+                }
+                await messageWebSocket.ConnectAsync(uri);
+                messageWriter = new DataWriter(messageWebSocket.OutputStream);
+                OnOpen?.Invoke();
+            } catch (Exception e)
+            {
+                OnError?.Invoke(e.Message);
+                OnClose?.Invoke(false);
+                await Task.CompletedTask;
+            }
         }
 
         private void MessageReceived(MessageWebSocket sender, MessageWebSocketMessageReceivedEventArgs args) 
         {
-            using (DataReader reader = args.GetDataReader()) {
-                reader.UnicodeEncoding = UnicodeEncoding.Utf8;
-                string read = reader.ReadString(reader.UnconsumedBufferLength);
-                OnMessage.Invoke(read);
+            try
+            {
+                using (DataReader reader = args.GetDataReader()) {
+                    reader.UnicodeEncoding = UnicodeEncoding.Utf8;
+                    string read = reader.ReadString(reader.UnconsumedBufferLength);
+                    OnMessage?.Invoke(read);
+                }
+            }
+            catch (Exception e)
+            {
+                OnError?.Invoke(e.Message);
+                OnClose?.Invoke(false);
+            }
+        }
+
+        public override async Task CloseAsync()
+        {
+            try
+            {
+                messageWebSocket.Close(1, "closed by user");
+                await Task.CompletedTask;
+            }
+            catch (Exception e)
+            {
+                OnError?.Invoke("Close:" + e.Message);
             }
         }
 
         public void Closed(IWebSocket webSocket,  WebSocketClosedEventArgs args) {
             // OnClose.Invoke(args.Reason);
-            OnClose.Invoke(true); // TODO: detect if disconnect was clean
+            OnClose?.Invoke(true); // TODO: detect if disconnect was clean
         }
 
         public override void Dispose()
         {
-            messageWebSocket.Dispose();
+            try { 
+                messageWebSocket.Dispose();
+            }
+            catch (Exception e)
+            {
+                OnError?.Invoke("Dispose:" + e.Message);
+            }
         }
 
         public override async Task Send(string message) 
         {
-            messageWriter.WriteString(message);
-            await messageWriter.StoreAsync();
+            try
+            {
+                messageWriter.WriteString(message);
+                await messageWriter.StoreAsync();
+            } catch (Exception e)
+            {
+                OnError?.Invoke("Send:" + e.Message);
+            }
         }
 #endif
     }

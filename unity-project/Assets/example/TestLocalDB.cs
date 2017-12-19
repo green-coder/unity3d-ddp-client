@@ -23,10 +23,11 @@
 */
 
 ﻿using UnityEngine;
-using System.Collections;
 using Moulin.DDP;
 using System.Collections.Generic;
 using UnityEngine.UI;
+using System.Threading.Tasks;
+using System;
 
 public class TestLocalDB : MonoBehaviour {
     public Text DebugText;
@@ -40,8 +41,14 @@ public class TestLocalDB : MonoBehaviour {
 
     private Queue<string> logQueue;
 
-    public void Start() {
+    private Subscription friendSub;
+
+    public async Task Start() {
 		Application.runInBackground = true; // Let the game run when the editor is not focused.
+
+        // clear debug log
+        DebugText.text = "";
+        logQueue = new Queue<string>();
 
         ddpConnection = new DdpConnection(serverUrl)
         {
@@ -49,24 +56,17 @@ public class TestLocalDB : MonoBehaviour {
         };
         ddpConnection.OnDebugMessage += AddDebugText;
 
-        logQueue = new Queue<string>();
-        DebugText.text = "";
-
         ddpConnection.OnConnected += (DdpConnection connection) => {
             AddDebugText("Connected.");
 		};
 
 		ddpConnection.OnDisconnected += (DdpConnection connection) => {
             AddDebugText("Disconnected.");
-
-			StartCoroutine(CoroutineHelper.GetInstance().RunAfter(() => {
-                AddDebugText("Try to reconnect ...");
-				connection.ConnectAsync();
-			}, 2.0f));
-		};
+            Reconnect();
+        };
 
 		ddpConnection.OnError += (DdpError error) => {
-            AddDebugText("Error: " + error.errorCode + " " + error.reason);
+            AddDebugText("Error: " + error.errorCode + ": " + error.reason);
 		};
 
 		localDB = new LocalDB((db, collectionName) => {
@@ -87,14 +87,25 @@ public class TestLocalDB : MonoBehaviour {
 				" fields: " + fields +
 				" cleared:" + cleared);
 		};
-	}
 
-	private Subscription friendSub;
+        await ddpConnection.ConnectAsync();
+    }
+
+    private async void Reconnect()
+    {
+        await ReconnectAsync();
+    }
+
+    private async Task ReconnectAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        AddDebugText("Try to reconnect ...");
+        await ddpConnection.ConnectAsync();
+    }
 
     public void Connect()
     {
-        AddDebugText("Connecting ...");
-        ddpConnection.ConnectAsync();
+        ddpConnection.Connect();
     }
 
     public void Disconnect()
@@ -115,25 +126,32 @@ public class TestLocalDB : MonoBehaviour {
         ddpConnection.Unsubscribe(friendSub);
     }
 
-    public void RemoveAll()
+    public async void RemoveAll()
     {
-        ddpConnection.Call("friends.removeAll");
+        await ddpConnection.CallAsync("friends.removeAll");
     }
 
-    public void Create()
+    public async void Create()
     {
-        ddpConnection.Call("friends.create", JSONObject.CreateStringObject("Coco"));
+        await ddpConnection.CallAsync("friends.create", JSONObject.CreateStringObject("Coco"));
     }
 
     public void DebugAttributes()
     {
-        foreach (var entry in friendCollection.documents)
+        if (friendCollection.documents.Count == 0)
         {
-            AddDebugText(entry.Key + " " + entry.Value);
+            AddDebugText("No friends found. Subscribe first and make sure you created some friends.");
+        }
+        else
+        {
+            foreach (var entry in friendCollection.documents)
+            {
+                AddDebugText(entry.Key + " " + entry.Value);
+            }
         }
     }
 
-    public void AddAttributes()
+    public async void AddAttributes()
     {
         JSONObject parents = new JSONObject();
         parents.AddField("mother", "wonder woman");
@@ -142,20 +160,21 @@ public class TestLocalDB : MonoBehaviour {
         attr.AddField("age", 24);
         attr.AddField("height", 180);
         attr.AddField("parents", parents);
-        ddpConnection.Call("friends.addAttributes", JSONObject.StringObject("Coco"), attr);
+        await ddpConnection.CallAsync("friends.addAttributes", JSONObject.StringObject("Coco"), attr);
     }
 
-    public void RemoveAttributes()
+    public async void RemoveAttributes()
     {
         JSONObject attr = new JSONObject();
         attr.AddField("age", 1);
         attr.AddField("height", 1);
         attr.AddField("parents.mother", 1);
-        ddpConnection.Call("friends.removeAttributes", JSONObject.StringObject("Coco"), attr);
+        await ddpConnection.CallAsync("friends.removeAttributes", JSONObject.StringObject("Coco"), attr);
     }
 
     public void AddDebugText(string text)
     {
+        Debug.Log(text);
         logQueue.Enqueue(text);
     }
 
@@ -166,7 +185,6 @@ public class TestLocalDB : MonoBehaviour {
             while (logQueue.Count > 0)
             {
                 string log = logQueue.Dequeue();
-                Debug.Log(log);
                 string[] original = DebugText.text.Split('\n');
                 List<string> logMessages = new List<string>();
                 for (int i = 0; i < Mathf.Min(original.Length, 10); i++)

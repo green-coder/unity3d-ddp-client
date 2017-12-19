@@ -23,11 +23,11 @@
 */
 
 using UnityEngine;
-using System.Collections;
 using Moulin.DDP;
 using System;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public class TestDdpClient : MonoBehaviour {
     public Text DebugText;
@@ -41,25 +41,26 @@ public class TestDdpClient : MonoBehaviour {
     public void Start() {
 		Application.runInBackground = true; // Let the game run when the editor is not focused.
 
-        this.DebugText.text = "";
+        DebugText.text = "";
         logQueue = new Queue<string>();
-        ddpConnection = new DdpConnection(serverUrl);
-		ddpConnection.logMessages = logMessages;
+
+        ddpConnection = new DdpConnection(serverUrl)
+        {
+            logMessages = logMessages
+        };
         ddpConnection.OnDebugMessage += AddDebugText;
 
+        int i = UnityEngine.Random.Range(0, 100);
+        int j = UnityEngine.Random.Range(0, 100);
         ddpConnection.OnConnected += (DdpConnection connection) => {
-            AddDebugText("Connected.");
-
-			StartCoroutine(MyCoroutine());
+            AddDebugText("Connected!");
+            CallAdd(i, j);
 		};
 
 		ddpConnection.OnDisconnected += (DdpConnection connection) => {
             AddDebugText("Disconnected.");
-
-			StartCoroutine(CoroutineHelper.GetInstance().RunAfter(() => {
-                AddDebugText("Try to reconnect ...");
-				connection.ConnectAsync();
-			}, 2.0f));
+            Reconnect();
+			
 		};
 
 		ddpConnection.OnConnectionClosed += (DdpConnection connection) => {
@@ -102,10 +103,22 @@ public class TestDdpClient : MonoBehaviour {
 
 	}
 
+    private async void Reconnect()
+    {
+        await ReconnectAsync();
+    }
+
+    private async Task ReconnectAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        AddDebugText("Try to reconnect ...");
+        await ddpConnection.ConnectAsync();
+    }
+
     public void Connect()
     {
         AddDebugText("Connecting ...");
-        ddpConnection.ConnectAsync();
+        ddpConnection.Connect();
     }
 
     public void Disconnect()
@@ -145,7 +158,14 @@ public class TestDdpClient : MonoBehaviour {
 
     public void CallAdd()
     {
-        MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(19), JSONObject.Create(23));
+        int i = UnityEngine.Random.Range(0, 100);
+        int j = UnityEngine.Random.Range(0, 100);
+        CallAdd(i, j);
+    }
+
+    public void CallAdd(int i, int j)
+    {
+        MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(i), JSONObject.Create(j));
         methodCall.OnUpdated = (MethodCall obj) => {
             AddDebugText("Updated, methodId=" + obj.id);
         };
@@ -208,12 +228,6 @@ public class TestDdpClient : MonoBehaviour {
             CallAdd();
 		}
 
-	}
-
-    private IEnumerator MyCoroutine() {
-		MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(19), JSONObject.Create(23));
-		yield return methodCall.WaitForResult();
-        AddDebugText("(19 + 23)'s call has a result: " + methodCall.result.i);
 	}
 
 }

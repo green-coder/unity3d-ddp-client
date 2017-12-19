@@ -28,6 +28,7 @@ using Moulin.DDP;
 using UnityEngine.UI;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System;
 
 public class TestDdpAccount : MonoBehaviour {
     public Text DebugText;
@@ -43,11 +44,11 @@ public class TestDdpAccount : MonoBehaviour {
 	private DdpConnection ddpConnection;
 	private DdpAccount account;
 
-	public void Start() {
+	public async Task Start() {
         Application.runInBackground = true; // Let the game run when the editor is not focused.
 
         // clear debug log
-        this.DebugText.text = ""; 
+        DebugText.text = ""; 
         logQueue = new Queue<string>();
 
         ddpConnection = new DdpConnection(serverUrl)
@@ -55,6 +56,7 @@ public class TestDdpAccount : MonoBehaviour {
             logMessages = logMessages
         };
         ddpConnection.OnDebugMessage += AddDebugText;
+        await ddpConnection.ConnectAsync();
 
 		account = new DdpAccount(ddpConnection);
 
@@ -64,12 +66,8 @@ public class TestDdpAccount : MonoBehaviour {
 
 		ddpConnection.OnDisconnected += (DdpConnection connection) => {
             AddDebugText("Disconnected.");
-
-			StartCoroutine(CoroutineHelper.GetInstance().RunAfter(async () => {
-                AddDebugText("Try to reconnect ...");
-				await connection.ConnectAsync();
-			}, 2.0f));
-		};
+            Reconnect();
+        };
 
 		ddpConnection.OnError += (DdpError error) => {
             AddDebugText("Error: " + error.errorCode + " " + error.reason);
@@ -107,10 +105,17 @@ public class TestDdpAccount : MonoBehaviour {
 
 	}
 
+    private async void Reconnect()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        AddDebugText("Try to reconnect ...");
+        await ddpConnection.ConnectAsync();
+    }
+
     public void Connect()
     {
         AddDebugText("Connecting ...");
-        Task.Run(() => ddpConnection.ConnectAsync());
+        ddpConnection.Connect();
     }
 
     public void Disconnect()
@@ -118,19 +123,19 @@ public class TestDdpAccount : MonoBehaviour {
         ddpConnection.Close();
     }
 
-    public void CreateUserAndLogin()
+    public async void CreateUserAndLogin()
     {
-        StartCoroutine(account.CreateUserAndLogin(username, password));
+        await account.CreateUserAndLogin(username, password);
     }
 
-    public void Login()
+    public async void Login()
     {
-        StartCoroutine(account.Login(username, password));
+        await account.Login(username, password);
     }
 
-    public void ResumeSession()
+    public async void ResumeSession()
     {
-        StartCoroutine(account.ResumeSession(token));
+        await account.ResumeSession(token);
     }
 
     public void TokenInformation()
@@ -138,9 +143,9 @@ public class TestDdpAccount : MonoBehaviour {
         AddDebugText("Token " + account.token + " expires at " + account.tokenExpiration);
     }
 
-    public void Logout()
+    public async void Logout()
     {
-        StartCoroutine(account.Logout());
+        await account.Logout();
     }
 
     public void AddDebugText(string text)

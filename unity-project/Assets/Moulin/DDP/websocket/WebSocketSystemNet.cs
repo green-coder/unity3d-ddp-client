@@ -24,8 +24,8 @@
 
 using System;
 using System.Threading.Tasks;
+using UnityEngine;
 #if !WINDOWS_UWP
-using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -39,32 +39,62 @@ namespace Moulin.DDP
         {
             this.ddpConnection = ddpConnection;
             uri = new Uri(url);
-            Task.Run(() => ConnectAsync());
         }
 
 #if !WINDOWS_UWP
-        private ClientWebSocket webSocket;
+        private ClientWebSocket webSocket = null;
         private readonly CancellationTokenSource cts = new CancellationTokenSource();
 
         public override async Task ConnectAsync()
         {
-            webSocket = new ClientWebSocket();
-            await webSocket.ConnectAsync(uri, cts.Token);
-            OnOpen.Invoke();
+            if (webSocket == null || webSocket.State == WebSocketState.Closed)
+            {
+                webSocket = new ClientWebSocket();
+                webSocket.Options.KeepAliveInterval = TimeSpan.FromSeconds(5);
+            }
+            try
+            {
+                await webSocket.ConnectAsync(uri, cts.Token);
+            } catch (Exception)
+            {
+                //await webSocket.CloseAsync(WebSocketCloseStatus.Empty, "Can not connect to server!", cts.Token);
+                // e.message is just "Generic WebSocket exception" so we create our own.
+                OnError?.Invoke("Can not connect to server.");
+                OnClose?.Invoke(false);
+                await Task.CompletedTask;
+                return;
+            }
             await Task.Factory.StartNew(
                 async () =>
                 {
                     ArraySegment<byte> buffer = new ArraySegment<byte>(new byte[1024]);
-                    while (true)
+                    if (webSocket.State == WebSocketState.Open)
                     {
-                        WebSocketReceiveResult result = await webSocket.ReceiveAsync(buffer, cts.Token);
-                        if (webSocket.State != WebSocketState.Open)
-                        {
-                            break;
-                        }
-                        string json = Encoding.UTF8.GetString(buffer.Array, 0, result.Count);
-                        OnMessage.Invoke(json);
+                        OnOpen?.Invoke();
                     }
+                    try
+                    {
+                        while (true)
+                        {
+                            WebSocketReceiveResult result = await webSocket.ReceiveAsync(buffer, cts.Token);
+                            if (webSocket.State != WebSocketState.Open)
+                            {
+                                break;
+                            }
+
+                            string json = Encoding.UTF8.GetString(buffer.Array, 0, result.Count);
+                            OnMessage?.Invoke(json);
+                        }
+                        OnClose?.Invoke(true);
+                    }
+                    catch(Exception e)
+                    {
+                        // we assume that we lost the connection when an error occurs, so we set the state back to DISCONNECTED
+                        OnError?.Invoke(e.Message);
+                        Dispose();
+                        OnClose?.Invoke(false);
+                    }
+                    
                 }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             // TODO: detect if some error occured and the connection was not closed clean
             // OnClose.Invoke(true);
@@ -78,10 +108,21 @@ namespace Moulin.DDP
         public override void Dispose()
         {
             webSocket.Dispose();
+            webSocket = null;
         }
 
-        async public override Task Send(string message)
+        public override async Task Send(string message)
         {
+            if (webSocket == null)
+            {
+                OnError?.Invoke("WebSocket not set");
+                return;
+            }
+            if (webSocket.State == WebSocketState.Closed)
+            {
+                OnError?.Invoke("Can not send message, WebSocket closed");
+                return;
+            }
             Byte[] bytes = Encoding.UTF8.GetBytes(message);
             await webSocket.SendAsync(new ArraySegment<byte>(bytes),
                 WebSocketMessageType.Text, true, cts.Token);
