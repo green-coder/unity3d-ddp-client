@@ -154,21 +154,16 @@ namespace Moulin.DDP
         private async void OnWebSocketOpen()
         {
             OnDebugMessage?.Invoke("Websocket open");
-            Debug.Log("send connect...");
             await SendAsync(GetConnectMessage());
-            Debug.Log("done sending connect");
 
-            Debug.Log("subscribe");
             foreach (Subscription subscription in subscriptions.Values)
             {
                 await SendAsync(GetSubscriptionMessage(subscription));
             }
-            Debug.Log("call methods");
             foreach (MethodCall methodCall in methodCalls.Values)
             {
                 await SendAsync(GetMethodCallMessage(methodCall));
             }
-            Debug.Log("onOpenDone");
         }
 
 		private void OnWebSocketError(string reason) {
@@ -209,7 +204,6 @@ namespace Moulin.DDP
 			    case MessageType.CONNECTED: {
 					sessionId = message[Field.SESSION].str;
 					ddpConnectionState = ConnectionState.CONNECTED;
-                    Debug.Log("SET STATE TO " + ddpConnectionState);
                     OnConnected?.Invoke(this);
                     break;
 				}

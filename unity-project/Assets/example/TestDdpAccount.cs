@@ -150,6 +150,7 @@ public class TestDdpAccount : MonoBehaviour {
 
     public void AddDebugText(string text)
     {
+		Debug.Log(text);
         logQueue.Enqueue(text);
     }
 
@@ -160,7 +161,6 @@ public class TestDdpAccount : MonoBehaviour {
             while (logQueue.Count > 0)
             {
                 string log = logQueue.Dequeue();
-                Debug.Log(log);
                 string[] original = DebugText.text.Split('\n');
                 List<string> logMessages = new List<string>();
                 for (int i = 0; i < Mathf.Min(original.Length, 10); i++)
