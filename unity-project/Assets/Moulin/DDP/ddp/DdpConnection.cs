@@ -467,18 +467,31 @@ namespace Moulin.DDP
             await SendAsync(message);
         }
 
-		public Subscription Subscribe(string name, params JSONObject[] items) {
-			Subscription subscription = new Subscription() {
-				id = "" + subscriptionId++,
-				name = name,
-				items = items
-			};
-			subscriptions[subscription.id] = subscription;
-            Send(GetSubscriptionMessage(subscription));
-			return subscription;
-		}
+        public Subscription Subscribe(string name, params JSONObject[] items)
+        {
+            Task<Subscription> sub = SubscribeAsync(name, items);
+            // wait until message has been send
+            sub.Wait();
+            return sub.Result;
+        }
 
-		public void Unsubscribe(Subscription subscription) {
+        public async Task<Subscription> SubscribeAsync(string name, params JSONObject[] items)
+        {
+            Subscription subscription = new Subscription()
+            {
+                id = "" + subscriptionId++,
+                name = name,
+                items = items
+            };
+            lock (subscriptions)
+            {
+                subscriptions[subscription.id] = subscription;
+            }
+            await SendAsync(GetSubscriptionMessage(subscription));
+            return subscription;
+        }
+
+        public void Unsubscribe(Subscription subscription) {
 			Send(GetUnsubscriptionMessage(subscription));
 		}
 
