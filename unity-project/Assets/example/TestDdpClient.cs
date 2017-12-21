@@ -22,132 +22,212 @@
 	SOFTWARE.
 */
 
-﻿using UnityEngine;
-using System.Collections;
+using UnityEngine;
 using Moulin.DDP;
+using System;
+using UnityEngine.UI;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public class TestDdpClient : MonoBehaviour {
+    public Text DebugText;
 
-	public string serverUrl = "ws://localhost:3000/websocket";
+    public string serverUrl = "ws://localhost:3000/websocket";
 	public bool logMessages;
 
 	private DdpConnection ddpConnection;
+    private Queue<string> logQueue;
 
-	public void Start() {
+    public void Start() {
 		Application.runInBackground = true; // Let the game run when the editor is not focused.
 
-		ddpConnection = new DdpConnection(serverUrl);
-		ddpConnection.logMessages = logMessages;
+        DebugText.text = "";
+        logQueue = new Queue<string>();
 
-		ddpConnection.OnConnected += (DdpConnection connection) => {
-			Debug.Log("Connected.");
+        ddpConnection = new DdpConnection(serverUrl)
+        {
+            logMessages = logMessages
+        };
+        ddpConnection.OnDebugMessage += AddDebugText;
 
-			StartCoroutine(MyCoroutine());
+        int i = UnityEngine.Random.Range(0, 100);
+        int j = UnityEngine.Random.Range(0, 100);
+        ddpConnection.OnConnected += (DdpConnection connection) => {
+            AddDebugText("Connected!");
+            CallAdd(i, j);
 		};
 
 		ddpConnection.OnDisconnected += (DdpConnection connection) => {
-			Debug.Log("Disconnected.");
-
-			StartCoroutine(CoroutineHelper.GetInstance().RunAfter(() => {
-				Debug.Log("Try to reconnect ...");
-				connection.Connect();
-			}, 2.0f));
+            AddDebugText("Disconnected.");
+            Reconnect();
+			
 		};
 
 		ddpConnection.OnConnectionClosed += (DdpConnection connection) => {
-			Debug.Log("Connection closed.");
+            AddDebugText("Connection closed.");
 		};
 
 		ddpConnection.OnError += (DdpError error) => {
-			Debug.Log("Error: " + error.errorCode + " " + error.reason);
+            AddDebugText("Error: " + error.errorCode + " " + error.reason);
 		};
 
 		ddpConnection.OnAdded += (collection, id, fields) => {
-			Debug.Log("Added docId " + id +
+            AddDebugText("Added docId " + id +
 				" in collection " + collection);
 		};
 
 		ddpConnection.OnRemoved += (collection, id) => {
-			Debug.Log("Removed docId " + id +
+            AddDebugText("Removed docId " + id +
 				" in collection " + collection);
 		};
 
 		ddpConnection.OnChanged += (collection, id, fields, cleared) => {
-			Debug.Log("Changed docId " + id +
+            AddDebugText("Changed docId " + id +
 				" in collection " + collection +
 				" fields: " + fields +
 				" cleared:" + cleared);
 		};
 
 		ddpConnection.OnAddedBefore += (collection, id, fields, before) => {
-			Debug.Log("Added docId " + id +
+            AddDebugText("Added docId " + id +
 				" before docId " + before +
 				" in collection " + collection +
 				" fields: " + fields);
 		};
 
 		ddpConnection.OnMovedBefore += (collection, id, before) => {
-			Debug.Log("Moved docId " + id +
+            AddDebugText("Moved docId " + id +
 				" before docId " + before +
 				" in collection " + collection);
 		};
 
 	}
 
-	private Subscription friendSub;
+    private async void Reconnect()
+    {
+        await ReconnectAsync();
+    }
 
-	public void Update() {
-		if (Input.GetKeyDown(KeyCode.C)) {
-			Debug.Log("Connecting ...");
-			ddpConnection.Connect();
+    private async Task ReconnectAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        AddDebugText("Try to reconnect ...");
+        await ddpConnection.ConnectAsync();
+    }
+
+    public void Connect()
+    {
+        AddDebugText("Connecting ...");
+        ddpConnection.Connect();
+    }
+
+    public void Disconnect()
+    {
+        AddDebugText("Closing connection ...");
+        ddpConnection.Close();
+    }
+
+    public void Subscribe()
+    {
+        friendSub = ddpConnection.Subscribe("friends");
+        friendSub.OnReady = (Subscription obj) => {
+            AddDebugText("Ready subscription: " + obj.id);
+        };
+    }
+
+    public void Unsubscribe()
+    {
+        ddpConnection.Unsubscribe(friendSub);
+    }
+
+    public void RemoveAll()
+    {
+        ddpConnection.Call("friends.removeAll");
+    }
+
+    public void CreateFriends()
+    {
+        MethodCall methodCall = ddpConnection.Call("friends.create", JSONObject.CreateStringObject("Coco"));
+        methodCall.OnUpdated = (MethodCall obj) => {
+            AddDebugText("Updated, methodId=" + obj.id);
+        };
+        methodCall.OnResult = (MethodCall obj) => {
+            AddDebugText("Result = " + obj.result);
+        };
+    }
+
+    public void CallAdd()
+    {
+        int i = UnityEngine.Random.Range(0, 100);
+        int j = UnityEngine.Random.Range(0, 100);
+        CallAdd(i, j);
+    }
+
+    public void CallAdd(int i, int j)
+    {
+        MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(i), JSONObject.Create(j));
+        methodCall.OnUpdated = (MethodCall obj) => {
+            AddDebugText("Updated, methodId=" + obj.id);
+        };
+        methodCall.OnResult = (MethodCall obj) => {
+            AddDebugText("Result = " + obj.result);
+        };
+    }
+
+    private Subscription friendSub;
+
+    public void AddDebugText(string text)
+    {
+		Debug.Log(text);
+        logQueue.Enqueue(text);
+    }
+
+
+    public void Update()
+    {
+        if (logQueue != null)
+        {
+            while (logQueue.Count > 0)
+            {
+                string log = logQueue.Dequeue();
+                string[] original = DebugText.text.Split('\n');
+                List<string> logMessages = new List<string>();
+                for (int i = 0; i < Mathf.Min(original.Length, 10); i++)
+                {
+                    logMessages.Add(original[i]);
+                }
+                DebugText.text = log + "\n" + string.Join("\n", logMessages);
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.C)) {
+            Connect();
 		}
 
 		if (Input.GetKeyDown(KeyCode.V)) {
-			Debug.Log("Closing connection ...");
-			ddpConnection.Close();
+            Disconnect();
 		}
 
 		if (Input.GetKeyDown(KeyCode.S)) {
-			friendSub = ddpConnection.Subscribe("friends");
-			friendSub.OnReady = (Subscription obj) => {
-				Debug.Log("Ready subscription: " + obj.id);
-			};
+            Subscribe();
 		}
 
 		if (Input.GetKeyDown(KeyCode.U)) {
-			ddpConnection.Unsubscribe(friendSub);
+            Unsubscribe();
 		}
 
 		if (Input.GetKeyDown(KeyCode.R)) {
-			ddpConnection.Call("friends.removeAll");
+            RemoveAll();
 		}
 
 		if (Input.GetKeyDown(KeyCode.F)) {
-			MethodCall methodCall = ddpConnection.Call("friends.create", JSONObject.CreateStringObject("Coco"));
-			methodCall.OnUpdated = (MethodCall obj) => {
-				Debug.Log("Updated, methodId=" + obj.id);
-			};
-			methodCall.OnResult = (MethodCall obj) => {
-				Debug.Log("Result = " + obj.result);
-			};
+            CreateFriends();
 		}
 
 		if (Input.GetKeyDown(KeyCode.A)) {
-			MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(7), JSONObject.Create(5));
-			methodCall.OnUpdated = (MethodCall obj) => {
-				Debug.Log("Updated, methodId=" + obj.id);
-			};
-			methodCall.OnResult = (MethodCall obj) => {
-				Debug.Log("Result = " + obj.result);
-			};
+            CallAdd();
 		}
 
-	}
-
-	private IEnumerator MyCoroutine() {
-		MethodCall methodCall = ddpConnection.Call("friends.add", JSONObject.Create(19), JSONObject.Create(23));
-		yield return methodCall.WaitForResult();
-		Debug.Log("(19 + 23)'s call has a result: " + methodCall.result.i);
 	}
 
 }
