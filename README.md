@@ -6,6 +6,8 @@ I can be used for many things, like account registration, score board, match-mak
 
 It may not be a fit for game interactions which require a lot of network data update per second (in which case you may want to use something like UNet instead).
 
+> If you are developing for the UWP platform (e.g. for Mixed Reality headsets or XBox) or if you like to use the new .Net 4.6 take a look at the [dev branch](https://github.com/green-coder/unity3d-ddp-client/tree/dev)
+
 ## Feature list
 
 * DDP-client:
