@@ -67,22 +67,30 @@ namespace Moulin.DDP
             await Task.Factory.StartNew(
                 async () =>
                 {
-                    ArraySegment<byte> buffer = new ArraySegment<byte>(new byte[1024]);
                     if (webSocket.State == WebSocketState.Open)
                     {
                         OnOpen?.Invoke();
                     }
                     try
                     {
+                        //Lets assume messages do not get bigger than 10 MB
+                        int maxSize = 10 * 1024 * 1024;
+                        byte[] buffer = new byte[maxSize];
                         while (true)
                         {
-                            WebSocketReceiveResult result = await webSocket.ReceiveAsync(buffer, cts.Token);
+                            WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
                             if (webSocket.State != WebSocketState.Open)
                             {
                                 break;
                             }
+                            if (result.Count >= maxSize || !result.EndOfMessage)
+                            {
+                                OnError?.Invoke("Maximum size for message exceeded"); 
+                                // the next message will also fail because we will send incorrect JSON to the encoder.
+                                continue;
+                            }
 
-                            string json = Encoding.UTF8.GetString(buffer.Array, 0, result.Count);
+                            string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
                             OnMessage?.Invoke(json);
                         }
                         OnClose?.Invoke(true);
