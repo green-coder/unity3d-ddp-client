@@ -54,15 +54,15 @@ namespace Moulin.DDP
             throw new NotImplementedException();
         }
 
-        public virtual async Task Send(string message)
-        {
-            throw new NotImplementedException();
-        }
-
         public virtual async Task CloseAsync()
         {
             throw new NotImplementedException();
         }
 #pragma warning restore 1998
+        public virtual void Send(string message)
+        {
+            throw new NotImplementedException();
+        }
+
     }
 }

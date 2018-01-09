@@ -111,13 +111,15 @@ namespace Moulin.DDP
             }
         }
 
-        public override async Task Send(string message) 
+        public override void Send(string message) 
         {
             try
             {
                 messageWriter.WriteString(message);
-                await messageWriter.StoreAsync();
-            } catch (Exception e)
+                Task t = Task.Run(() => messageWriter.StoreAsync());
+                t.Wait(); // prevent the messagewriter from joining strings and instead send them directly
+            } 
+            catch (Exception e)
             {
                 OnError?.Invoke("Send:" + e.Message);
             }

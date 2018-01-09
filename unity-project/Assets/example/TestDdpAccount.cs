@@ -44,7 +44,7 @@ public class TestDdpAccount : MonoBehaviour {
 	private DdpConnection ddpConnection;
 	private DdpAccount account;
 
-	public async Task Start() {
+	public void Start() {
         Application.runInBackground = true; // Let the game run when the editor is not focused.
 
         // clear debug log
@@ -56,7 +56,6 @@ public class TestDdpAccount : MonoBehaviour {
             logMessages = logMessages
         };
         ddpConnection.OnDebugMessage += AddDebugText;
-        await ddpConnection.ConnectAsync();
 
 		account = new DdpAccount(ddpConnection);
 
@@ -102,8 +101,8 @@ public class TestDdpAccount : MonoBehaviour {
 				" before docId " + before +
 				" in collection " + collection);
 		};
-
-	}
+        ddpConnection.Connect();
+    }
 
     private async void Reconnect()
     {
@@ -123,19 +122,19 @@ public class TestDdpAccount : MonoBehaviour {
         ddpConnection.Close();
     }
 
-    public async void CreateUserAndLogin()
+    public void CreateUserAndLogin()
     {
-        await account.CreateUserAndLogin(username, password);
+        account.CreateUserAndLogin(username, password);
     }
 
-    public async void Login()
+    public void Login()
     {
-        await account.Login(username, password);
+        account.Login(username, password);
     }
 
-    public async void ResumeSession()
+    public void ResumeSession()
     {
-        await account.ResumeSession(token);
+        account.ResumeSession(token);
     }
 
     public void TokenInformation()
@@ -143,9 +142,9 @@ public class TestDdpAccount : MonoBehaviour {
         AddDebugText("Token " + account.token + " expires at " + account.tokenExpiration);
     }
 
-    public async void Logout()
+    public void Logout()
     {
-        await account.Logout();
+        account.Logout();
     }
 
     public void AddDebugText(string text)

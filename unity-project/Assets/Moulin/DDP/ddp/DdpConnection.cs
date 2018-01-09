@@ -106,10 +106,7 @@ namespace Moulin.DDP
         private WebSocketConnection ws;
 		private ConnectionState ddpConnectionState;
 		private string sessionId;
-
-		private object subscriptionsLock = new object();
-		private object methodCallsLock = new object();
-		
+        
 		private Dictionary<string, Subscription> subscriptions = new Dictionary<string, Subscription>();
 		private Dictionary<string, MethodCall> methodCalls = new Dictionary<string, MethodCall>();
 
@@ -158,17 +155,13 @@ namespace Moulin.DDP
         {
             OnDebugMessage?.Invoke("Websocket open");
             Send(GetConnectMessage());
-			lock (subscriptionsLock) {
-				foreach (Subscription subscription in subscriptions.Values)
-				{
-					Send(GetSubscriptionMessage(subscription));
-				}
+			foreach (Subscription subscription in subscriptions.Values)
+			{
+				Send(GetSubscriptionMessage(subscription));
 			}
-			lock (methodCallsLock) {
-				foreach (MethodCall methodCall in methodCalls.Values)
-				{
-					Send(GetMethodCallMessage(methodCall));
-				}
+			foreach (MethodCall methodCall in methodCalls.Values)
+			{
+				Send(GetMethodCallMessage(methodCall));
 			}
         }
 
@@ -184,14 +177,8 @@ namespace Moulin.DDP
 			if (wasClean) {
 				ddpConnectionState = ConnectionState.CLOSED;
 				sessionId = null;
-				lock (subscriptionsLock)
-				{
-					subscriptions.Clear();
-				}
-				lock (methodCallsLock)
-				{
-					methodCalls.Clear();
-				}
+				subscriptions.Clear();
+				methodCalls.Clear();
                 OnDisconnected?.Invoke(this);
 			} else {
 				ddpConnectionState = ConnectionState.DISCONNECTED;
@@ -243,10 +230,7 @@ namespace Moulin.DDP
 
 			    case MessageType.NOSUB: {
 				    string subscriptionId = message[Field.ID].str;
-					lock (subscriptionsLock)
-					{
-						subscriptions.Remove(subscriptionId);
-					}
+					subscriptions.Remove(subscriptionId);
 
 				    if (message.HasField(Field.ERROR)) {
                         OnError?.Invoke(GetError(message[Field.ERROR]));
@@ -283,10 +267,7 @@ namespace Moulin.DDP
 
 				    foreach (string subscriptionId in subscriptionIds) {
 					    Subscription subscription;
-						lock (subscriptionsLock)
-						{
-							subscription = subscriptions[subscriptionId];
-						}
+						subscription = subscriptions[subscriptionId];
 					    if (subscription != null) {
 						    subscription.isReady = true;
                             subscription.OnReady?.Invoke(subscription);
@@ -314,21 +295,14 @@ namespace Moulin.DDP
 
 			    case MessageType.RESULT: {
 					string methodCallId = message[Field.ID].str;
-					MethodCall methodCall;
-					lock (methodCallsLock)
-					{
-						methodCall = methodCalls[methodCallId];
-					}
+					MethodCall methodCall = methodCalls[methodCallId];
 					if (methodCall != null) {
 						if (message.HasField(Field.ERROR)) {
 							methodCall.error = GetError(message[Field.ERROR]);
 						}
 						methodCall.result = message[Field.RESULT];
 						if (methodCall.hasUpdated) {
-							lock (methodCallsLock)
-							{
-								methodCalls.Remove(methodCallId);
-							}
+							methodCalls.Remove(methodCallId);
 						}
 						methodCall.hasResult = true;
                         methodCall.OnResult?.Invoke(methodCall);
@@ -339,17 +313,10 @@ namespace Moulin.DDP
 			    case MessageType.UPDATED: {
 					string[] methodCallIds = ToStringArray(message[Field.METHODS]);
 					foreach (string methodCallId in methodCallIds) {
-						MethodCall methodCall;
-						lock (methodCallsLock)
-						{
-							methodCall = methodCalls[methodCallId];
-						}
+						MethodCall methodCall = methodCalls[methodCallId];
 						if (methodCall != null) {
 							if (methodCall.hasResult) {
-								lock (methodCallsLock)
-								{
-									methodCalls.Remove(methodCallId);
-								}
+								methodCalls.Remove(methodCallId);
 							}
 							methodCall.hasUpdated = true;
                             methodCall.OnUpdated?.Invoke(methodCall);
@@ -452,9 +419,9 @@ namespace Moulin.DDP
 			return result;
 		}
 
-        private async Task SendAsync(string message) {
+        private void Send(string message) {
             if (logMessages) OnDebugMessage?.Invoke("Send: " + message);
-            await ws.Send(message);
+            ws.Send(message);
 		}
 
 		public ConnectionState GetConnectionState() {
@@ -494,22 +461,7 @@ namespace Moulin.DDP
             ws.Dispose();
 		}
 
-        // send message without waiting for its result
-        void Send(string message)
-        {
-            Task t = SendAsync(message);
-            t.Wait();
-        }
-
         public Subscription Subscribe(string name, params JSONObject[] items)
-        {
-            Task<Subscription> sub = SubscribeAsync(name, items);
-            // wait until message has been send
-            sub.Wait();
-            return sub.Result;
-        }
-
-        public async Task<Subscription> SubscribeAsync(string name, params JSONObject[] items)
         {
             Subscription subscription = new Subscription()
             {
@@ -517,11 +469,8 @@ namespace Moulin.DDP
                 name = name,
                 items = items
             };
-            lock (subscriptions)
-            {
-                subscriptions[subscription.id] = subscription;
-            }
-            await SendAsync(GetSubscriptionMessage(subscription));
+            subscriptions[subscription.id] = subscription;
+            Send(GetSubscriptionMessage(subscription));
             return subscription;
         }
 
@@ -529,34 +478,16 @@ namespace Moulin.DDP
 			Send(GetUnsubscriptionMessage(subscription));
 		}
 
-        public async Task<MethodCall> CallAsync(string methodName, params JSONObject[] items)
-        {
-            MethodCall methodCall = new MethodCall()
-            {
-                id = "" + methodCallId++,
-                methodName = methodName,
-                items = items
-            };
-			lock (methodCallsLock)
-			{
-				methodCalls[methodCall.id] = methodCall;
-			}
-            await SendAsync(GetMethodCallMessage(methodCall));
-            return methodCall;
-        }
-
         public MethodCall Call(string methodName, params JSONObject[] items) {
 			MethodCall methodCall = new MethodCall() {
 				id = "" + methodCallId++,
 				methodName = methodName,
 				items = items
 			};
-			lock (methodCallsLock)
-			{
-				methodCalls[methodCall.id] = methodCall;
-			}
-			Send(GetMethodCallMessage(methodCall));
-			return methodCall;
+			methodCalls[methodCall.id] = methodCall;
+            Send(GetMethodCallMessage(methodCall));
+            
+            return methodCall;
 		}
 
         void IDisposable.Dispose()

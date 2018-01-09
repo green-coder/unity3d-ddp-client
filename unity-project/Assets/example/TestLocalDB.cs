@@ -126,14 +126,14 @@ public class TestLocalDB : MonoBehaviour {
         ddpConnection.Unsubscribe(friendSub);
     }
 
-    public async void RemoveAll()
+    public void RemoveAll()
     {
-        await ddpConnection.CallAsync("friends.removeAll");
+        ddpConnection.Call("friends.removeAll");
     }
 
-    public async void Create()
+    public void Create()
     {
-        await ddpConnection.CallAsync("friends.create", JSONObject.CreateStringObject("Coco"));
+        ddpConnection.Call("friends.create", JSONObject.CreateStringObject("Coco"));
     }
 
     public void DebugAttributes()
@@ -151,7 +151,7 @@ public class TestLocalDB : MonoBehaviour {
         }
     }
 
-    public async void AddAttributes()
+    public void AddAttributes()
     {
         JSONObject parents = new JSONObject();
         parents.AddField("mother", "wonder woman");
@@ -160,16 +160,16 @@ public class TestLocalDB : MonoBehaviour {
         attr.AddField("age", 24);
         attr.AddField("height", 180);
         attr.AddField("parents", parents);
-        await ddpConnection.CallAsync("friends.addAttributes", JSONObject.StringObject("Coco"), attr);
+        ddpConnection.Call("friends.addAttributes", JSONObject.StringObject("Coco"), attr);
     }
 
-    public async void RemoveAttributes()
+    public void RemoveAttributes()
     {
         JSONObject attr = new JSONObject();
         attr.AddField("age", 1);
         attr.AddField("height", 1);
         attr.AddField("parents.mother", 1);
-        await ddpConnection.CallAsync("friends.removeAttributes", JSONObject.StringObject("Coco"), attr);
+        ddpConnection.Call("friends.removeAttributes", JSONObject.StringObject("Coco"), attr);
     }
 
     public void AddDebugText(string text)

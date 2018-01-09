@@ -26,6 +26,7 @@ using System;
 using System.Threading.Tasks;
 using UnityEngine;
 #if !WINDOWS_UWP
+using System.IO;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -42,6 +43,7 @@ namespace Moulin.DDP
         }
 
 #if !WINDOWS_UWP
+        private object sendlock = new object();
         private ClientWebSocket webSocket = null;
         private readonly CancellationTokenSource cts = new CancellationTokenSource();
 
@@ -55,55 +57,80 @@ namespace Moulin.DDP
             try
             {
                 await webSocket.ConnectAsync(uri, cts.Token);
-            } catch (Exception)
+            }
+            catch (Exception)
             {
-                //await webSocket.CloseAsync(WebSocketCloseStatus.Empty, "Can not connect to server!", cts.Token);
                 // e.message is just "Generic WebSocket exception" so we create our own.
                 OnError?.Invoke("Can not connect to server.");
                 OnClose?.Invoke(false);
                 await Task.CompletedTask;
                 return;
             }
-            await Task.Factory.StartNew(
-                async () =>
+            // Start a new Thread for incomming messages. 
+            // If we would try to call the ReceiveAsync-function using just async Unity will freeze.
+            await Task.Factory.StartNew(() => {
+                if (webSocket.State == WebSocketState.Open)
                 {
-                    if (webSocket.State == WebSocketState.Open)
+                    OnOpen?.Invoke();
+                }
+                try
+                {
+                    int maxSize = 1024*8;
+                    ArraySegment<Byte> buffer = new ArraySegment<byte>(new Byte[maxSize]);
+                    WebSocketReceiveResult result = null;
+                    while (true)
                     {
-                        OnOpen?.Invoke();
-                    }
-                    try
-                    {
-                        //Lets assume messages do not get bigger than 10 MB
-                        int maxSize = 10 * 1024 * 1024;
-                        byte[] buffer = new byte[maxSize];
-                        while (true)
+                        using (MemoryStream ms = new MemoryStream())
                         {
-                            WebSocketReceiveResult result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+                            do
+                            {
+                                Task<WebSocketReceiveResult> t = webSocket.ReceiveAsync(buffer, cts.Token);
+                                // Note: If we use the async await instead of synchronous Wait() we might get disconnected.
+                                t.Wait();
+                                result = t.Result;
+                                ms.Write(buffer.Array, buffer.Offset, result.Count);
+                                if (webSocket.State != WebSocketState.Open)
+                                {
+                                    ms.Seek(0, SeekOrigin.Begin);
+                                    using (StreamReader reader = new StreamReader(ms, Encoding.UTF8))
+                                    {
+                                        OnError?.Invoke("Error while receiving data: " + reader.ReadToEnd());
+                                    }
+                                    OnError?.Invoke("State is " + webSocket.State + " instead of open.");
+                                    break;
+                                }
+                                    
+
+                            }
+                            while (!result.EndOfMessage);
                             if (webSocket.State != WebSocketState.Open)
                             {
                                 break;
                             }
-                            if (result.Count >= maxSize || !result.EndOfMessage)
-                            {
-                                OnError?.Invoke("Maximum size for message exceeded"); 
-                                // the next message will also fail because we will send incorrect JSON to the encoder.
-                                continue;
-                            }
 
-                            string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                            OnMessage?.Invoke(json);
+                            ms.Seek(0, SeekOrigin.Begin);
+
+                            if (result.MessageType == WebSocketMessageType.Text)
+                            {
+                                using (StreamReader reader = new StreamReader(ms, Encoding.UTF8))
+                                {
+                                    string json = reader.ReadToEnd();
+                                    OnMessage?.Invoke(json);
+                                }
+                            }
                         }
-                        OnClose?.Invoke(true);
                     }
-                    catch(Exception e)
-                    {
-                        // we assume that we lost the connection when an error occurs, so we set the state back to DISCONNECTED
-                        OnError?.Invoke(e.Message);
-                        Dispose();
-                        OnClose?.Invoke(false);
-                    }
-                    
-                }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                    OnClose?.Invoke(true);
+                }
+                catch (WebSocketException e)
+                {
+                    // we assume that we lost the connection when an error occurs, so we set the state back to DISCONNECTED
+                    OnError?.Invoke(e.Message);
+                    Dispose();
+                    OnClose?.Invoke(false);
+                }
+
+            }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             // TODO: detect if some error occured and the connection was not closed clean
             // OnClose.Invoke(true);
         }
@@ -119,7 +146,7 @@ namespace Moulin.DDP
             webSocket = null;
         }
 
-        public override async Task Send(string message)
+        public override void Send(string message)
         {
             if (webSocket == null)
             {
@@ -131,9 +158,17 @@ namespace Moulin.DDP
                 OnError?.Invoke("Can not send message, WebSocket closed");
                 return;
             }
+            
             Byte[] bytes = Encoding.UTF8.GetBytes(message);
-            await webSocket.SendAsync(new ArraySegment<byte>(bytes),
-                WebSocketMessageType.Text, true, cts.Token);
+            Task t;
+            lock (sendlock)
+            {
+                t = webSocket.SendAsync(new ArraySegment<byte>(bytes),
+                    WebSocketMessageType.Text, true, cts.Token);
+
+                t.Wait();
+            }
+
         }
 #endif
     }

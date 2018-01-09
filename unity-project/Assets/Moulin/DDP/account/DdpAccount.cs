@@ -110,16 +110,16 @@ namespace Moulin.DDP {
 			}
 		}
 
-		public async Task CreateUserAndLogin(string username, string password) {
+		public void CreateUserAndLogin(string username, string password) {
 			JSONObject loginPasswordObj = JSONObject.Create();
 			loginPasswordObj.AddField("username", username);
 			loginPasswordObj.AddField("password", GetPasswordObj(password));
 
-			MethodCall loginCall = await connection.CallAsync("createUser", loginPasswordObj);
+			MethodCall loginCall = connection.Call("createUser", loginPasswordObj);
             loginCall.OnResult += HandleLoginResult;
 		}
 
-		public async Task Login(string username, string password) {
+		public void Login(string username, string password) {
 			JSONObject userObj = JSONObject.Create();
 			userObj.AddField("username", username);
 
@@ -127,20 +127,20 @@ namespace Moulin.DDP {
 			loginPasswordObj.AddField("user", userObj);
 			loginPasswordObj.AddField("password", GetPasswordObj(password));
 
-			MethodCall loginCall = await connection.CallAsync("login", loginPasswordObj);
+			MethodCall loginCall = connection.Call("login", loginPasswordObj);
             loginCall.OnResult += HandleLoginResult;
 		}
 
-		public async Task ResumeSession(string token) {
+		public void ResumeSession(string token) {
 			JSONObject tokenObj = JSONObject.Create();
 			tokenObj.AddField("resume", token);
 
-			MethodCall loginCall = await connection.CallAsync("login", tokenObj);
+			MethodCall loginCall = connection.Call("login", tokenObj);
             loginCall.OnResult += HandleLoginResult;
 		}
 
-		public async Task Logout() {
-			MethodCall logoutCall = await connection.CallAsync("logout");
+		public void Logout() {
+			MethodCall logoutCall = connection.Call("logout");
 			HandleLogoutResult(logoutCall);
 		}
 

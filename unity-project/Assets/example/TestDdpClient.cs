@@ -100,6 +100,7 @@ public class TestDdpClient : MonoBehaviour {
 				" before docId " + before +
 				" in collection " + collection);
 		};
+        ddpConnection.Connect();
 
 	}
 

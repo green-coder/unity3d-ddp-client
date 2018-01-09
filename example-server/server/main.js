@@ -23,8 +23,10 @@
 */
 
 import '../imports/api/friends.js';
+import '../imports/api/benchmark.js';
 
 import { Friends } from '../imports/api/friends.js';
+import { Benchmark } from '../imports/api/benchmark.js';
 
 Meteor.startup(() => {
 });
