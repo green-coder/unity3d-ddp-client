@@ -38,7 +38,8 @@ public class testDDPAccEdit : MonoBehaviour {
 	private DdpAccount account;
 
 	public void Start() {
-		Application.runInBackground = true; // Let the game run when the editor is not focused.
+		//Debug.Log("DDp connection started");
+		Application.runInBackground = false; // Let the game run when the editor is not focused.
 
 		ddpConnection = new DdpConnection(serverUrl);
 		ddpConnection.logMessages = logMessages;
@@ -55,6 +56,11 @@ public class testDDPAccEdit : MonoBehaviour {
 			StartCoroutine(CoroutineHelper.GetInstance().RunAfter(() => {
 				Debug.Log("Try to reconnect ...");
 				connection.Connect();
+				Debug.Log("Account Token1: " + account.token);
+				StartCoroutine(CoroutineHelper.GetInstance().RunAfter(() => {
+					StartCoroutine(account.ResumeSession(account.token));
+					Debug.Log("Account Token: " + account.token);
+				}, 5.0f));
 			}, 2.0f));
 		};
 
@@ -127,43 +133,47 @@ public class testDDPAccEdit : MonoBehaviour {
 			StartCoroutine(account.Logout());
 		}
 	}
-	*/
-
-    public void ConnectDdp(){
-        Debug.Log("Connecting ...");
-				ddpConnection.Connect();
-    }
-
-    public void DisconnectDdp(){
-        ddpConnection.Close();
-				Debug.Log("connection closed");
-    }
-
-		public void ReadUserInput(string s){
-				username = s;
-				Debug.Log("username: " + username);
+*/
+	
+		public void ConnectDdp(){
+			Debug.Log("Connecting ...");
+					ddpConnection.Connect();
 		}
 
-		public void ReadPasswordInput(string s){
-				password = s;
-				Debug.Log("password: " + password);
+		public void DisconnectDdp(){
+			ddpConnection.Close();
+					Debug.Log("connection closed");
 		}
 
-    public void LoginUser(){
-        StartCoroutine(account.Login(username, password));
-				Debug.Log("Logged in");
-		}
+			public void ReadUserInput(string s){
+					username = s;
+					Debug.Log("username: " + username);
+			}
 
-		public void LogoutUser(){
-        StartCoroutine(account.Logout());
-				Debug.Log("Logged out");
-		}
+			public void ReadPasswordInput(string s){
+					password = s;
+					Debug.Log("password: " + password);
+			}
 
-		void OnApplicationFocus(bool pauseStatus) {
-      if(pauseStatus){
-          Debug.Log("your app is NO LONGER in the background");
-      }else{
-          Debug.Log("your app is now in the background");
-      }
- 		}
+		public void LoginUser(){
+			StartCoroutine(account.Login(username, password));
+			token = account.token;
+			Debug.Log("Logged in");
+		Debug.Log("Token:"+ account.token);
+	}
+
+			public void LogoutUser(){
+			StartCoroutine(account.Logout());
+					Debug.Log("Logged out");
+			}
+
+			void OnApplicationFocus(bool pauseStatus) {
+		  if(pauseStatus){
+			  Debug.Log("your app is NO LONGER in the background");
+		  }else{
+			  Debug.Log("your app is now in the background");
+		  }
+			}
+	
 }
+
