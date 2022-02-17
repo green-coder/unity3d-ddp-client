@@ -1,7 +1,9 @@
-# Unity3D-DDP-Client (Unity DdpAccount test extension)
+# Unity3D-DDP-Client ::(Unity DdpAccount test extension)::
 
-Unity Scene Extension to test DdpAccount.cs in origional green-coder/unity3d-ddp-client repo. Works best with simulted device extension for Unity: Google Pixel XL
- - you must run the example server seperatly on http://localhost:3000/ and manually connect to the example server by clicking the "Connect" button before attempting a login or logout.
+::Unity Scene Extension to test DdpAccount.cs in origional green-coder/unity3d-ddp-client repo. Works best with simulted device extension for Unity: Google Pixel XL. You must run the example server seperatly on http://localhost:3000/ and manually connect to the example server by clicking the "Connect" button before attempting a login or logout.::
+::edited::
+
+
 
 [A lightweight DDP client for Unity3D](https://github.com/green-coder/unity3d-ddp-client). In other words, a library for Unity3D to communicate in realtime with [Meteor](https://www.meteor.com) servers.
 
