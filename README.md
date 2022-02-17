@@ -1,4 +1,4 @@
-# Unity3D-DDP-Client
+# Unity3D-DDP-Client (Unity DdpAccount test extension)
 
 Unity Scene Extension to test DdpAccount.cs in origional green-coder/unity3d-ddp-client repo. Works best with simulted device extension for Unity: Google Pixel XL
  - you must run the example server seperatly on http://localhost:3000/ and manually connect to the example server by clicking the "Connect" button before attempting a login or logout.
